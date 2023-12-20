@@ -1,0 +1,122 @@
+---
+title: "R and RStudio"
+author: "Fiona Horner"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: journal
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Installing R and RStudio
+
+R is a free and open source programming language that is widely used for statistics in scientific research. To download the current version of R, go to http://lib.stat.cmu.edu/R/CRAN/, and select the link for your operating system. 
+
+Once R is downloaded, go to [Posit](https://posit.co/download/rstudio-desktop/) to download RStudio. RStudio is an *integrated development environment* (IDE) that has many helpful tools when working with R. 
+
+If you run into problems, check out these resources for troubleshooting:
+
+* [Tutorial on downloading R and RStudio](https://www.datacamp.com/tutorial/installing-R-windows-mac-ubuntu)
+* [CRAN FAQs](http://lib.stat.cmu.edu/R/CRAN/faqs.html)
+
+If you still are having problems downloading R and RStudio, contact Fiona.
+
+Once you have everything installed, watch the **Tour of RStudio** video before proceeding with this tutorial.
+
+
+## Additional Set Up
+
+### Packages
+
+Because R is open source, many many people have created their own tools based in R, called packages. To use packages, you have to first install them on your machine (just once). Then going forward, you need to load the package into R before using it (once per R session).
+
+In this class, we'll use a package called `knitr` to turn RMarkdown files into formatted documents. That's how this tutorial was created!
+
+Here is the code we used to install and load the package `knitr` in the tutorial.
+
+```{r, eval=FALSE}
+#install the package (only need to do once per machine)
+install.packages('knitr')
+
+#load the package (do this every time you open R)
+library(knitr)
+```
+
+If you are reading this in RStudio, note that the `eval=FALSE` at the top of the chunk tells R to not run this chunk when it knits this document (since I already have knitr downloaded).
+
+If you are having problems getting `knitr` set up, re-watch the tutorial. If you are still stuck, contact Fiona. 
+
+### File System
+
+Whenever you are working with R, it's important to let R know **where on your computer you are working**. Formally, this is called your **working directory**. In practice, this is usually the folder on your system where your R file (and maybe data files) are stored. **I highly, highly encourage you to take a few minutes NOW to set up a clear file system for this class.** This can be as simple as a single folder for 85309 where all of your documents are stored. I usually prefer to have sub-folders within a class folder so I can distinguish, for example, lecture slides from homework assignments. Whatever you decide, spending some time doing this now will avoid issues like:
+
+* Errors that say R can't find a data file, even though you are looking at it on your computer
+* Exporting a finalized homework assignment, but being unable to find it on your computer because it was saved in a different directory
+* Creating duplicates of documents or assignments, and having to redo work because you lost track of where on your computer you were working previously. 
+
+I've seen all of this happen to students, and it can make R seem a lot more challenging than it needs to be.
+
+So how do you tell R where you are working? In R lingo, this is called **setting your working directory**. You can explicitly do this in the console or code chunk like so:
+
+```{r}
+setwd('/Users/fiona/Documents/TA/2024_85309/85309_tutorials')
+```
+
+Of course, you will need to personalize the file path to match that on your own computer. (And be sure to include the quotes!) For now, this path should lead to wherever you saved the file you are working on. If you are confused about this, re-watch the tutorial video. 
+
+I always recommend setting the working directory (aka wd) like this because it's very clear and very reproducible. You can add a line like this to the top of all your R files, so you always know exactly where you are working (speaking from experience, never underestimate how much future you is capable of forgetting!)
+
+However, another user-friendly way to set your working directory is to go to **Session** in the RStudio toolbar, and then go to **Set working directory**. You'll see different options here:
+
+* **To source file location:** This sets the directory to wherever the current file is saved
+* **To Files pane location:** This sets the directory to wherever the files pane (bottom right) is open
+* **Choose directory:** This opens your file system so you can manually select a folder.
+
+While these methods are easy to use, the trade off is that you'll have no record of what you did. This can make it hard for you or others to reproduce your work in the future.
+
+## RMarkdown
+
+In this class, we'll be using a type of file called an **RMarkdown** file. These files allow you to integrate code with text in a user-friendly way, so you can do things like run a statistical test and talk about the results all in one place. In fact, this tutorial was created using RMarkdown!
+
+To best follow along with the rest of this tutorial, open the version of this tutorial that ends in .Rmd (1_RandRStudio.Rmd). Be sure to save it in your 85309 folder system!
+
+To run code in an RMarkdown file, you need to add whats called a code chunk. Here is what a *code chunk* looks like:
+
+```{r}
+print('This is a code chunk!')
+```
+
+You can run a code chunk by pressing the green arrow in the top right corner. Alternatively, you can use [keyboard shortcuts](https://bookdown.org/yihui/rmarkdown-cookbook/rstudio-shortcuts.html).
+
+By default, both the code and the output will appear in your finalized knitted document. Let's do that now. At the top of your source pane, click the button that says Knit to create a formatted html version of this tutorial. This should appear in the Viewer pane, where you can resize it or pop it out into it's own window. 
+If your knitted document is appearing in it's own window and you want it in the viewer (or vice versa), you can update this setting by going to Tools --> R Markdown --> Basic, and adjusting the "Show output preview in:" setting. 
+
+In your knitted document, notice that you can see both the code and the output from our code chunk. Transparency! You should also see the html file saved in your working directory.
+
+Note that every time you knit your document, it overrides the prior knit version (assuming you haven't changed the name of the source file). Also, knitting creates an empty, temporary environment, and then runs all of your code chunks at once. This means that any file, variable, package, etc. used in your document needs to be set up from within that document, not from the global environment. This is really important for reproducibility. 
+
+You can add code chunks to an RMarkdown file in two ways: 
+
+1) By clicking the green C in the upper right corner of the source pane, and selecting 'R'
+2) Using keyboard shortcuts: Option + Cmd + i (Macs) or Ctrl + Alt + i (Windows)
+
+You can also run code inline by typing ` `r ` ` and adding your code after the r.
+
+For example, we can create a variable:
+
+```{r}
+variable <- 'the answer'
+```
+
+And call `r variable` in text. Compare how this line looks in the .Rmd version versus the .html version. (You'll need to knit again.)
+
+There are many cool formatting options you can use with RMarkdown, but we won't be covering those in this class. If you are interested in learning more of the ins and outs of RMarkdown, check out the [R Markdown Cookbook](https://bookdown.org/yihui/rmarkdown-cookbook/) by Yihui Xie, Christophe Dervieux, and Emily Riederer. 
+
+
+
