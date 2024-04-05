@@ -1,0 +1,317 @@
+---
+title: "More Statistical Tests for Two Variables"
+author: "Fiona"
+output: 
+  html_document:
+    theme: journal
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+---
+
+This tutorial is based on [Javier Rasero's](https://github.com/jrasero/cm-85309-2023) prior 309 course content.
+
+---
+
+## Two categorical variables
+
+### $X^2$ Test For Independence
+
+The $X^2$ test for independence is a statistical test based on the $X^2$ statistic, which compares the observed frequencies in a contingency table with the expected frequencies under the assumption that the two variables are independent. In this tutorial, we will learn how to perform the $X^2$ test for independence in R.
+
+We'll use some simulated data on the results from a clinical trial. Participants received either a drug or a placebo, and their progress was monitored. At the end of the study, it was determined whether the participants' progress had worsened, remained the same, or improved.
+
+```{r}
+dat.tutorial<-read.csv("https://raw.githubusercontent.com/jrasero/cm-85309-2023/main/datasets/tutorial8chisquare.csv")
+head(dat.tutorial)
+```
+
+
+**Comprehension Check:**
+
+**1) What is the null hypothesis for the *one-sample* chi-square test that we learned previously?**
+
+**2) What is the null hypothesis for a $X^2$ Test for Independence?**
+
+
+Just like our one-sample chi-square test, we need to start with a frequency table:
+
+```{r}
+myTable <- table(dat.tutorial)
+myTable
+```
+
+Note that if our dataset had more than two variables, we'd need to specify which variables we want in the table. For example:
+
+```{r}
+table(dat.tutorial$group, dat.tutorial$evolution)
+```
+#### Prop tables
+
+If we want to understand the *proportions* within our table, we can use `prop.table()`. This can give you a better idea of potential differences across your distributions.
+
+The proportions will always add to 1:
+```{r}
+prop.table(myTable)
+sum(prop.table(myTable))
+```
+
+You may want to specifically compare proportions within certain groups. To do so, you can use the `margins` argument. For example, if we were interested in the proportion of each outcome *within* each treatment condition, we could do:
+```{r}
+marg1 <- prop.table(myTable, margin = 1)
+marg1
+
+#each row sums to 1:
+sum(marg1[1,]) #sum of Drug row
+sum(marg1[2,]) #sum of Placebo row
+```
+
+Alternatively, if we were interested in the proportion of treatment assignment within each outcome:
+```{r}
+marg2 <- prop.table(myTable, margin = 2)
+marg2
+
+# each column sums to 1
+sum(marg2[,1])
+sum(marg2[,2])
+sum(marg2[,3])
+```
+#### Running the test
+
+To run the test, we use the same function that we did previously. The only difference is that our frequency table now has information on two categorical variables instead of one.
+
+**Important: Note that you input your frequency table, not your prop table. Why?**
+
+```{r}
+test1 <- chisq.test(myTable)
+test1
+```
+
+**Comprehension Check: What conclusion do you draw from this test?**
+
+To better understand exactly what the association is here, you should look at the observed and expected frequencies.
+
+The observed frequencies are the same as our frequency table, but can be extracted from the test like so:
+```{r}
+test1$observed
+```
+
+And the test computes the expected frequencies -- i.e., the number of observations in each cell if the drug and placebo groups had the same distribution of outcomes:
+
+```{r}
+test1$expected
+```
+
+It may be easier to turn these frequency tables into prop tables when interpreting differences. Here, I choose margin = 1 because we're probably most interested in differences between the two treatment conditions.
+```{r}
+#observed proportions
+prop.table(test1$observed, margin = 1)
+
+#expected proportions 
+prop.table(test1$expected, margin = 1)
+```
+
+**Comprehension checks:**
+
+**What conclusion do you draw based on our test output and these two tables?**
+
+### Fisher's exact test 
+
+$X^2$ Tests are not recommended for small sample sizes, for example when there are fewer than 5 observations expected in each cell. For these cases, it is recommended to use Fisher's exact test. This test computes the probability of observing a particular table given the marginal totals:
+
+$$p = \frac{\left( a + b \right)! \left( c + d \right)! \left( a + c \right)! \left( b + d \right)!}{a! b! c! d! \left( a + b + c + d \right)!}$$
+
+The null hypothesis of Fisher's exact test is that there is no association between the two variables. **Note that this test can only be used with 2 x 2 frequency tables.** (E.g., two binary variables.)
+
+Let's create a sample frequency table:
+```{r}
+fisher.table<-matrix(c(5,1, 2,7), nrow=2, byrow=TRUE)
+
+colnames(fisher.table)<-c("A", "B")
+rownames(fisher.table)<-c("a", "b")
+fisher.table
+```
+
+If we try to run a X^2 test on this, we'll see an error:
+
+```{r}
+res.chisq<-chisq.test(fisher.table)
+res.chisq
+```
+Let's instead run a Fisher's test. In order to perform this kind of test in R, you can use the `fisher.test()` function, which also takes a frequency table as its input and returns the p-value of the test, as well as the odds ratio and its confidence interval.
+
+```{r}
+res.fisher<-fisher.test(fisher.table)
+res.fisher
+```
+
+**Comprehension Check: What conclusion do you draw from this output?**
+
+### McNemar Test
+
+If your data are **paired** you can use a McNemar Test to compare to binary outcomes. (Just like Fisher's, you can only do this test with a 2 x 2 frequency table.) It is based on a different distribution (binomial) than Fishers (which is hypergeometric).
+
+**Comprehension Check: What does it mean for data to be paired? What other test did we learn that requires this characteristic of the data?**
+
+We can simulate a data set:
+```{r}
+table.mcnemar <- matrix(c(5, 3, 12, 3), nrow = 2, byrow = TRUE)
+colnames(table.mcnemar) <- c("Yes", "No")
+rownames(table.mcnemar) <- c("Before", "After")
+
+table.mcnemar
+```
+
+
+And perform the test using `mcnemar.test()`:
+```{r}
+# run the McNemar test
+res.mcnemar <- mcnemar.test(table.mcnemar)
+
+# Print the summary of running this test
+res.mcnemar
+```
+
+## Two Continuous Variables
+
+### Pearson's Correlation
+
+Pearson's correlation is one of the most common types of statistical tests. It assesses the relationship between two continuous variables. For example, you might be interested in the correlation between a measure of loneliness, rated on a scale from 1 to 10, and a continuous measure of cardiovascular health.
+
+Let's simulate some data to illustrate:
+
+```{r}
+set.seed(1234)
+x<-rnorm(50)
+y<- 0.1*x + rnorm(50, sd = .3)
+z<- -.2*x + rnorm(50, sd = .2)
+
+dat.tutorial<-data.frame(x,y,z)
+head(dat.tutorial)
+```
+
+Before performing any correlation test, it is always recommended to visualize the relationship between the two variables using a scatterplot. As usual, we can use ggplot for this task.
+
+Correlations assess *linear* relationships between to variables. So we'll take advantage of the "lm" ("linear model") method in `geom_smooth()`.
+
+```{r}
+library(tidyverse)
+
+ggplot(data=dat.tutorial, mapping=aes(x,y)) + 
+geom_point() + 
+geom_smooth(method = "lm",  se = FALSE) + 
+theme_bw()
+
+ggplot(data=dat.tutorial, mapping=aes(x,z)) + 
+geom_point() + 
+geom_smooth(method = "lm",  se = FALSE) + 
+theme_bw()
+
+ggplot(data=dat.tutorial, mapping=aes(y,z)) + 
+geom_point() + 
+geom_smooth(method = "lm",  se = FALSE) + 
+theme_bw()
+```
+
+
+**Comprehension Check: Which variables do you think will have a significant correlation?**
+
+Let's address find out using the cor.test function. Per usual, this default alpha level for this test is .05.
+
+```{r}
+cor.xy <- cor.test(dat.tutorial$x, dat.tutorial$y)
+cor.xy
+```
+
+Equivalently, you can specify this function using formulas, although the structure is a bit different from what we've seen:
+```{r}
+res.xy<-cor.test(formula = ~ x + y, data = dat.tutorial)
+res.xy
+```
+
+Now lets test x and z:
+```{r}
+res.xz <- cor.test(dat.tutorial$x, dat.tutorial$z)
+res.xz
+```
+
+To see the additional information stored in our `res.xz` object, we can look at:
+```{r}
+names(res.xz)
+```
+
+We can extract each of these elements with $:
+```{r}
+# the correlation coefficient
+res.xz$estimate
+
+#the t-statistic
+res.xz$statistic
+```
+
+**Comprehension check: Why do we have a t-statistic here, when we didn't run a t-test? What does this statistic tell us?**
+
+### A note on interpreting correlation coefficients
+
+Run the below code, where we simulate some new variables and plot them:
+```{r}
+set.seed(1234)
+x2<-rnorm(50)
+y2<- -.2*x2
+
+dat.tutorial2 <- data.frame(x2,y2)
+
+ggplot(dat.tutorial2, aes(x = x2, y = y2)) + 
+  geom_smooth(method = "lm") + geom_point() + 
+  xlim(-2.5, 2.5) +
+  ylim(-2.5, 2.5)
+```
+
+**Comprehension check: Based on this plot, what do you expect the correlation coefficient to be?**
+
+```{r}
+cor.test(dat.tutorial2$x2, dat.tutorial2$y2)
+```
+
+Now run this code. What do you expect the correlation to be?
+
+```{r}
+set.seed(1234)
+x3<-rnorm(50)
+y3<- 5*x3 + rnorm(50, sd = 10)
+
+dat.tutorial3 <- data.frame(x3,y3)
+
+ggplot(dat.tutorial3, aes(x = x3, y = y3)) + 
+  geom_smooth(method = "lm") + geom_point()
+```
+
+Check your answer:
+```{r}
+cor.test(dat.tutorial3$x3, dat.tutorial3$y3)
+```
+
+Play around with this code, and see what happens when you change either the slope or the error (standard deviation) of y3. Based on these outputs, what do you conclude?
+
+**Linking to the formula:**
+
+The formula for Pearson's correlation, $\rho$ (pronounced 'row') is:
+
+$$ \rho = \frac{cov(X, Y)}{\sigma_{x} \sigma_{y}} $$
+
+This is the covariance between X and Y divided by the product of their standard deviation.
+
+More formally:
+
+$$ \rho= \frac{\sum(x_{i} - \bar x)(y_{i} - \bar y)}{\sqrt\sum(x_{i} - \bar x)^2\sum(y_{i} - \bar y)^2} $$
+
+
+**Comprehension Check: How can we connect these formulas to our simulations above? Think about what happens in our first simulation where *y had no error.* **
+
+In summary, correlation coefficients take into account both the slope (covariance) and the error terms (standard deviations) of the two variables. 

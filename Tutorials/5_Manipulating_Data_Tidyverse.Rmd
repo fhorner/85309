@@ -1,0 +1,454 @@
+---
+title: "Manipulating Data with the Tidyverse"
+author: "Fiona Horner"
+output: 
+  html_document:
+    theme: journal
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+*Note: The content in this tutorial draws from [Javier Rasero's](https://github.com/jrasero/cm-85309-2023) prior 309 course content and from [Data Explorations.](https://coaxlab.github.io/Data-Explorations/intro.html)*
+
+## The Tidyverse
+
+In this tutorial, we'll dig a little deeper into the tidyverse. As we've discussed, the tidyverse is a collection of packages that have a shared *grammar*. This means that it's really easy to make functions talk to each other, and function options or additional arguments all match the same style so they’re easier to remember.
+
+To get started, load the tidyverse:
+```{r}
+library(tidyverse)
+```
+
+We'll again practice with the SAT dataset we've been using.
+
+```{r}
+sat.dat<-read.csv("https://vincentarelbundock.github.io/Rdatasets/csv/psych/sat.act.csv") %>% 
+  rename(id = rownames)
+sat.dat$gender<- as.factor(sat.dat$gender)
+sat.dat$education<- as.factor(sat.dat$education)
+```
+
+Quick review:
+
+1. How can we quickly access the dimensions of our data set?
+2. How can we quickly summarize the variables included in our data set?
+
+
+For *almost* all functions in the tidyverse, the first argument is the data frame that you want to perform the operation on. 
+
+For example:
+```{r, eval=FALSE}
+mutate(myData, var1 = c(1, 2, 3, 4))
+```
+
+This makes it really easy to pass the output of one function in as the input to another. This is accomplished using a **pipe** operator, which is `%>%` in R.
+
+**Keyboard shortcuts for the tidyverse pipe:**
+
+* Mac: Shift + Cmd + m
+* Windows: Shift + Ctrl + m
+
+```{r}
+sat.dat$SATV %>% 
+  mean() %>% 
+  round(2)
+```
+
+Why is this handy? Let's see how we could accomplish the same task without the pipe. We could either nest everything into one line:
+```{r}
+round(mean(sat.dat$SATV), 2)
+```
+
+Or we could assign a temporary variable:
+```{r}
+sampleMean <- mean(sat.dat$SATV)
+round(sampleMean, 2)
+```
+
+**Comprehension check: What are some issues you see with each of these options?**
+
+These problems get compounded the more complicated our code is. 
+
+Say we wanted to summarize the mean SATV for women grouped by level of education, and sort the output from highest to lowest:
+
+(Don't worry if you don't understand this code right now! Just notice how the pipe is working.)
+
+This could be accomplished with nesting like so:
+```{r}
+# Using nested functions
+arrange(summarise(group_by(filter(sat.dat, gender == 2), education),
+    meanSATV = mean(SATV)), desc(meanSATV))
+
+```
+
+What the heck is even happening with this? It's really hard to understand.
+
+Things are clearer if we use temporary variables:
+```{r}
+femaleData <- filter(sat.dat, gender == 2)
+femaleDataGrouped <- group_by(femaleData, education)
+femaleDataGroupedSummaries <- summarize(femaleDataGrouped, meanSATV = mean(SATV))
+femaleDataGroupedSummariesArranged <- arrange(femaleDataGroupedSummaries, desc(meanSATV))
+femaleDataGroupedSummariesArranged
+```
+
+But this creates a bunch of intermediate objects that I'll never need again. 
+
+Using the pipe makes it really clear what order I'm doing things in:
+
+```{r}
+sat.dat %>% 
+  filter(gender == 2) %>% 
+  group_by(education) %>% 
+  summarize(meanSATV = mean(SATV)) %>% 
+  arrange(desc(meanSATV))
+
+```
+
+**Comprehension check: In general, what is the first argument for tidyverse functions? What is the first argument that we input to `filter()` in the above code?**
+
+Notice in this code that I didn't have to include the `data$variable` format when referencing variables. This is called *tidy evaluation*, and helps simplify the code.
+
+
+**Comprehension check: why does the below code not return our summarized and arranged output from the prior chunk?**
+```{r}
+head(sat.dat)
+```
+
+**How would we modify the code above to access our changes/results?**
+
+
+## Helpful Tidyverse Functions
+
+### Select
+
+Select is for identifying **columns** in your data frame. We just indicate columns by name, like so:
+
+```{r}
+sat.dat %>% 
+  select(gender, ACT) %>% 
+  head()
+```
+
+Similar to indexing, including `:` indicates a range of columns:
+```{r}
+sat.dat %>% 
+  select(gender:ACT) %>% 
+  head()
+```
+
+**Comprehension Check: In R, does `:` indicate an inclusive or exclusive range?**
+
+If you want to **remove**, rather than keep, the indicated variables, add a `-` before:
+```{r}
+sat.dat %>% 
+  select(-id) %>% 
+  head()
+```
+
+Select has a lot of other handy uses that you should read in the docs. In particular, the functions `ends_with()`, `starts_with()` and `contains()` are useful for working with similarly named columns. 
+
+### Filter
+
+`filter()` is for identifying **rows** within your data frame. For example, say we only wanted observations (i.e., people) who had above average ACT scores. We could access these people like so:
+
+```{r}
+meanACT <- mean(sat.dat$ACT)
+sat.dat %>% 
+  filter(ACT > meanACT) %>% 
+  head()
+```
+
+Filter relies on **logical** (i.e., boolean) statements, and is thus a bit more complicated than `select`. Refer to the base R tutorial to review logical statements. 
+
+```{r}
+sat.dat[5,]$ACT > meanACT
+```
+
+Filter will keep the rows in which the logical statement returns true, and will remove those that return false. 
+
+Note that you can filter on multiple criteria at once. For example:
+```{r}
+sat.dat %>% 
+  filter(gender == 2 & education == 1) %>% #both statements must be true
+  nrow()
+```
+
+Another example:
+```{r}
+sat.dat %>% 
+  filter(education == 1 | education == 2) %>% #only one must be true
+  nrow()
+```
+
+For factors like this, you can also use the `%in%` operator, which will return true if the value is contained within the subsequent vector:
+```{r}
+sat.dat %>% 
+  filter(education %in% c(1, 2)) %>% 
+  nrow()
+```
+
+This is equivalent to the prior code chunk.
+
+### Arrange
+
+`arrange` will re-order the rows of your data frame based on values within a given column. For example, if we wanted to sort our data from lowest to highest ACT score, we would do:
+```{r}
+sat.dat %>% 
+  arrange(ACT) %>% 
+  head()
+```
+
+Highest to lowest:
+```{r}
+sat.dat %>% 
+  arrange(desc(ACT)) %>% 
+  head()
+```
+
+**Comprehension check: In the above chunk, we use nesting in the `arrange` line. Why can't we use the pipe in this case?**
+
+### Mutate
+
+`mutate()` creates a new column (variable) in a data frame:
+
+```{r}
+sat.dat %>% 
+  mutate(satSum = SATV + SATQ) %>% 
+  head() 
+```
+
+A few things to note: 
+
+* Use `=`, not `<-` inside of `mutate`
+* Notice that this operation occured *by row*. I didn't have to specify which row to pull the SATV and SATQ values from.
+
+An equivalent way to do this is like so:
+```{r}
+sat.dat$satSum = sat.dat$SATV + sat.dat$SATQ
+head(sat.dat)
+```
+
+**Comprehension check: What are two differences you notice in this code versus the tidyverse code?**
+
+### Drop NA
+
+Use `drop_na()` to--you guessed it--drop NAs (missing values) from your data frame. Note that if you apply this to an entire data frame, it will drop all lines with *any* missing values. In other words, it retains only complete rows. This is often *not* what you want.
+
+```{r}
+sat.dat %>% nrow()
+
+sat.dat %>% 
+  drop_na() %>% 
+  nrow()
+```
+
+Note that for simple operations like this, using the pipe makes less of a difference. This is still very clear what I'm accomplishing:
+
+```{r}
+nrow(sat.dat)
+nrow(drop_na(sat.dat))
+```
+
+
+**Comprehension check: How could we use `filter()` to drop rows where `SATQ` is missing?**
+
+```{r}
+# we'll practice this together
+```
+
+
+#### Practice Problem 1
+
+Let's say we want to plot ACT versus SATQ, but we want to group people into bins based on their SATV score. We are also only interested in certain demographic groups of participants. We'll work through each of these steps using the tidyverse:
+
+1) Get just the following variables: `gender`, `education`, `SATV`, `SATQ`, and `ACT`
+2) Get the rows for female participants who reported an education level of 3, 4, or 5
+3) Drop rows with missing values
+4) Create a new variable `SATVbins` that groups `SATV` into three categories: Those more than one standard deviation below the mean, those more than one standard deviation above the mean, and those within one standard deviation of the mean. 
+5) Create a scatter plot of `ACT` versus `SATQ`, where the color of each point is determined by `SATVbins`. Include a linear trend line for each bin separately.
+
+You don't need to create any temporary variables to accomplish this!
+
+```{r}
+#we'll work through this one together
+```
+
+Bonus question: Which of the above steps is dead code (code that isn't actually needed to accomplish our goal)? 
+
+### Group by
+
+`group_by()` *implicitly* groups your data based on one or more variables. This is a very handy function, particularly when you are summarizing and describing your data, but can be a little hard to wrap your head around because you can't always directly see it's effects. 
+
+**Comprehension check: when we talk about *groups* in R, what data structure are we typically referring to?**
+
+Can you see anything different in the below data?
+```{r}
+sat.dat %>% 
+  group_by(gender) %>% 
+  head()
+```
+
+How about if you look at the structure of the data?
+
+Group by is most clear when paired with summary statistics:
+```{r}
+sat.dat %>% 
+  group_by(gender) %>% 
+  summarise(mean = mean(ACT))
+```
+
+What happens if you exclude the `group_by()` line above?
+
+You can also group by multiple variables:
+```{r}
+sat.dat %>% 
+  group_by(gender, education) %>% 
+  summarise(mean = mean(ACT))
+```
+
+One thing to be careful of with group_by() is that the data frame will **remain grouped**. This can cause problems if you forget about it. Use `ungroup()` to...ungroup.
+
+```{r}
+sat.dat %>% 
+  group_by(gender) %>% 
+  mutate(groupMean = mean(ACT)) %>% 
+  mutate(groupMeanCenteredACT = ACT - groupMean) %>% 
+  ungroup() %>% 
+  summarize(gmACT_sd = sd(groupMeanCenteredACT))
+```
+
+### Pivots
+
+To understand the tidyverse's pivot functions, it's important to understand the difference between **long** data and **wide** data format. Consider our SAT data frame, where each row is a different participant, and participants have multiple test scores within a single row.
+
+```{r}
+head(sat.dat)
+```
+
+This would be considered **wide** format, because the values are organized horizontally within persons. We could re-imagine these same data in a **long** format, where participants have multiple rows, and each row holds a different test score. This is accomplished using `pivot_longer()`:
+
+```{r}
+longSat <- pivot_longer(data = sat.dat, cols = c(ACT, SATV, SATQ), 
+                        names_to = "test", values_to = "score") %>% 
+          select(!satSum) #we don't need this anymore
+head(longSat)
+```
+The input arguments here are:
+
+* `data`: your data object, just like always
+* `cols`: a vector of the column names you would like to "melt" together into one column
+* `names_to` : the name of the new column that will contain the selected `cols`
+* `values_to`: the name of the new column that will contain the value for each selected variable
+
+**Comprehension check: Can you think of other instances in which this data manipulation would be useful? What kind of data structure lends itself to long format?**
+
+This data structure is necessary for some statistical analyses. It also enables more flexible plotting. For example, having our new `test` column allows me to easily plot side-by-side boxplots:
+
+```{r}
+ggplot(longSat, aes(x = test, y = score)) + geom_boxplot()
+```
+
+I can get even more creative using the `facet_wrap()` geom:
+
+```{r}
+ggplot(longSat, aes(x = gender, y = score)) + geom_boxplot() + facet_wrap(~test)
+```
+
+We can undo this data transformation using `pivot_wider()`:
+```{r}
+wideSat <- pivot_wider(data = longSat, names_from = test, values_from = score)
+head(wideSat)
+```
+
+These arguments exactly mirror those in `pivot_longer()`:
+
+* `names_from`: the column that we want to draw our new column names from
+* `values_from`: the column that we want to draw our new column values from
+
+#### Practice problem:
+
+Let's practice this together. Load the "time.csv" data from Canvas. These data are from [Bolger & Laurenceau 2013](http://www.intensivelongitudinal.com/index.html) and contain information on individuals' reports of emotional intimacy with their partners over a daily diary period.
+
+(Working directory matters here!)
+```{r}
+#you must download the data from canvas to your working directory for this code to run
+timeData <- read_csv("time.csv")
+timeData$id <-  as.factor(timeData$id)
+timeData$treatment <- as.factor(timeData$treatment)
+```
+
+Each row refers to an individual participant, and each of the numbered columns is the participants' intimacy score for that day.
+
+**Comprehension check: Are these data in long or wide format?**
+
+How would we plot participants' intimacy scores over time? For clarity, let's choose six rows to plot -- three control and three treatment.
+```{r}
+#we'll transform the data here
+```
+
+
+```{r}
+#we'll plot the data here
+```
+
+Here, time refers to the day of the diary period, intimacy is the participants' daily intimacy rating with their partner, and treatment is whether or not they received the psychosocial intervention. 
+
+
+### Join
+
+The last functions we'll cover are those that **join** two datasets into one. 
+
+These follow the same general pattern (here, * indicates that there are multiple types of joins):
+
+```{r, eval=FALSE}
+*_join(x, y, b = "ID")
+```
+
+Where x and y are two dataframes to join, and `by` indicatges which variable(s) to match on.
+
+However, the join functions differ based on which rows they try to match:
+
+* `inner_join()`: includes all rows that are in both x and y
+
+* `left_join()`: includes all rows in x
+
+* `right_join()`: includes all rows in y
+
+* `full_join()`: includes all rows in either x or y
+
+For example, let's say we have two data frames: one that holds information about our participants, and the other has their response times on a given experimental task.
+```{r}
+# participant info
+personal <- data.frame(name = c("p01", "p02", "p03"),
+                       age = c(18, 21, 23), 
+                       firstlang = c("English", "Chinese", "English"))
+
+# response database
+response <- data.frame(name= c("p01","p01","p02","p02"),
+                       response=c(0,1,1,0))
+head(personal)
+head(response)
+```
+
+
+**Comprehension Check: What variable can we match these datasets on?**
+
+If x = `personal` and y = `response`, what will happen if we use `left_join` to combine these data sets?
+
+```{r}
+# We'll do this together
+```
+
+What if we use `right_join` instead?
+```{r}
+# We'll do this together
+```
+
+**Comprehension check: What is the difference between right_join(x, y) and left_join(y, x)?**
+

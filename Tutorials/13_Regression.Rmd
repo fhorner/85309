@@ -1,0 +1,466 @@
+---
+title: "Regression"
+author: "Fiona"
+output: 
+  html_document:
+    theme: journal
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+---
+
+This tutorial is based on [Javier Rasero's](https://github.com/jrasero/cm-85309-2023) prior 309 course content.
+
+---
+
+In this tutorial we are going to see how to run a regression model in R with both continuous and categorical independent variables. We will also see how to check the assumptions of such a model, so that we are convinced that it worked as expected.
+
+For this tutorial, let's import the following dataset (adapted from the main textbook of the course):
+
+```{r, message=FALSE}
+tutorial.dat<-read.csv("regressionData.csv")
+library(tidyverse)
+```
+
+
+This dataset contains information from one parent/infant dyad over time. It has the following four variables:
+
+* `parent.grump`: The level of grumpiness of the parent that particular day.
+* `parent.sleep`: The number of hours the parent slept a particular day.
+* `baby.sleep`: The number of hours the baby slept a particular day.
+* `day`: Day of the week, 1 (Monday) - 7 (Sunday)
+
+
+## Simple Linear Regression
+
+Is there a relationship between a parent's level of grumpiness and the amount of sleep they got the previous night?
+
+To start, let's visualize this relationship:
+
+```{r}
+ggplot(data=tutorial.dat, mapping = aes(x=parent.sleep, parent.grump)) +
+  geom_point(size=3, color="blue") +
+  xlab("Parent Sleep (hrs)") +
+  ylab("Parent grumpiness") + theme_classic()
+
+```
+
+There appears to be a clear association between the number of hours of sleep and the level of grumpiness. Is this relationship significant? As we saw previously, we could test this just using a test based on Pearson's correlations by means of `cor.test`.
+
+How would we run this test in R?
+
+```{r}
+# We'll fill this in together
+
+```
+
+
+**Comprehension Check: How would you interpret these results in the context of this research question? Would you say the relation is weak or strong, and why?**
+
+
+In many situations, this analysis may be sufficient. However, we sometimes want to explicitly model the relationship between variables. The simplest way to model this relationship would be with a line:
+
+```{r}
+ggplot(data=tutorial.dat, mapping = aes(x=parent.sleep, parent.grump)) + 
+  geom_point(size=3, color="blue") +
+  geom_smooth(method = lm, color="red", se = FALSE) +
+  xlab("Parent Sleep (hrs)") +
+  ylab("Parent Grumpiness") + theme_classic()
+```
+
+We can model this linear relationship (i.e., red line) in the above graph using a linear regression model. This model, (and any linear model) can be estimated in R using the built-in `lm` function. We just need to specify the dependent variable and the independent variable. lm takes care of doing the rest!
+
+Let's examine the function:
+
+```{r}
+?lm
+```
+
+
+As we can see, this function uses the *formula* syntax that we've learned. So you must specify both a formula and a data frame to run your test. 
+
+Let's run this function to model the linear relationship plotted above, that is, considering grumpiness as the *dependent variable*, and the number of the parent's hours slept as the *independent variable*. Remember that in your formula, the first term (before the tilde) is the dependent variable -- i.e., the variable you are trying to predict. Anything after the tilde will be your predictors.
+
+So our R formula would be  `parent.grump ~ parent.sleep`. This can be represented mathematically as:
+
+$$ Y_{grumpy} = \beta_0 + \beta_1X_{sleep} + \epsilon$$
+
+Where $\beta_0$ is the intercept for parent grumpiness, $\beta_1$ represents the effect of sleep on parent grumpiness (i.e., the coefficient), and $\epsilon$ represents the *error*, aka residuals. 
+
+We will store the output of this function to a variable named "reg.model.1":
+
+```{r}
+reg.model.1 <- lm(formula = parent.grump ~ parent.sleep, data=tutorial.dat)
+```
+
+And then view the output using "summary":
+```{r}
+summary(reg.model.1)
+```
+
+There is lots of information printed here. Right now, we want to focus on the section under "coefficients". 
+
+```{r}
+reg.model.1$coefficients
+```
+
+This output tells us that our $\beta_0$ is 125.96, and $\beta_1$ is -8.94. So our equation above becomes:
+
+$$ Y_{grumpy} = 125.96 -8.94*X_{sleep} + \epsilon$$
+
+What do these values mean?
+
+* An intercept equal to 125.96 means that if the number of hours slept by the parent is 0, their grumpiness level is expected to be 125.956 (for comparison, the parent has an average grumpiness level of 63.71!).
+
+* A slope equal to -8.94 means that for each hour of sleep the parent gets, their grumpiness decreases by 8.94 levels.
+
+What else can we see in this output? 
+
+#### Significance Testing Results
+
+Importantly, we have the result of *multiple* hypothesis tests.
+
+First, we see that both the intercept and the estimate for `parent.sleep` have associated t-value and p-values.
+
+Side note:  if you want to pull the full coefficient table from the above output, you need to do so from the **summary** object, not the original model object:
+
+```{r}
+summaryObject <- summary(reg.model.1)
+summaryObject$ coefficients
+```
+
+**Comprehension checks: **
+
+* **What values in this coefficient table are used to calculate the t-value we see?**
+
+* **What null hypothesis is being tested for these t-tests?**
+
+But there is also another test and p-value! We see it in the bottom of the output. This is the F-statistic for the full model -- it tells us if our model perform better than a null model (a model with no predictors; 0).
+
+We can  directly access the F-stat from the *summary* object if we want:
+```{r}
+summaryObject$fstatistic
+```
+
+And can use this information to get the p-value we see above:
+
+```{r}
+pf(434.9, df1 = 1, df2 = 98, lower.tail = FALSE)
+```
+
+(Remember in model outputs, R won't show p-values below 2.2e-16. Our p is far below this! Thus the differences.)
+
+#### R^2
+
+Finally, we see the R-squared values. 
+
+**Comprehension check: How do we interpret the r-squared value?**
+
+```{r}
+summaryObject[["r.squared"]]
+```
+
+
+For models like this with just one predictor, this is **literally** r (the correlation coefficient between the variables) squared:
+
+```{r}
+#uncomment this
+# cor.res$estimate
+# cor.res$estimate^2
+```
+
+We also have the **Adjusted R-squared value**. 
+
+```{r}
+summaryObject[["adj.r.squared"]]
+```
+
+**Comprehension check: What is the difference between the r-squared and the adjusted r-squared?**
+
+#### Correlation versus Simple Linear Regression
+
+In the coefficient table for parent.sleep in the output above, look at the t-value and p-value. Compare these values to those from our correlation test above. What do you notice?
+
+```{r}
+# Uncomment and run:
+# summaryObject$coefficients
+# cor.res
+```
+
+So what is the difference between our correlation coefficient (.90) and our parent.sleep estimate? 
+
+Recall our equation for rho, our correlation coefficient, boils down to:
+
+$$ \rho = \frac{Cov(X, Y)}{\sigma_{x} \sigma_{y}} $$
+
+In comparison, the equation for a regression coefficient in simple linear regression is:
+
+$$ \beta_{1} = \frac{Cov(X, Y)}{\sigma_{y}} $$
+
+These are almost the same information, just *scaled* differently. The correlation coefficient is in terms of the product of the variances for both X and Y. The regression coefficient is in terms of the variance of just Y (the dependent variable). But the numerators are identical.
+
+**Important:** This is only the case in simple linear regression. Things get more complicated with multiple linear regression...
+
+## Multiple Linear Regression
+
+The previous linear regression model assumed a single independent variable, "parent.sleep", which is the number of hours slept by the parent. But what if there are other variables that could also contribute to the grumpiness of the parent? We can attempt to assess this by using a multiple linear regression, which is simply a linear regression with *more than one independent variable*.
+
+Let's add "baby.sleep", which is the number of hours slept by the baby, to the previous regression model. This can be easily accomplished by adding this variable to the right side of the formula object in lm: 
+
+```{r}
+reg.model.2<-lm(formula = parent.grump ~ parent.sleep + baby.sleep,
+                data=tutorial.dat)
+
+mod2Summary <- summary(reg.model.2)
+mod2Summary
+```
+
+**Comprehension check: How do you interpret this output in the context of the question? What parts of the output are you basing your insights on?**
+
+
+### Practice question: 
+
+Create a new variable in the data frame of this tutorial, defined as the values of "baby.sleep" divided by 1000. Name this variable "baby.sleep.2", for example. Now rerun the multiple regression model again but replacing "baby.sleep" with "baby.sleep.2".
+
+```{r}
+# Run your code here
+```
+
+* How does the associated 𝛽 coefficient for this new variable compare to the one associated with "baby.sleep"? 
+
+* How does it compare to the 𝛽 coefficient for "parent.sleep"? 
+
+* Do these comparisons give us information on the *importance* of these predictors?
+
+
+### Confidence intervals
+
+To get confidence intervals from our model output, we can use the `confint` R built-in function:
+
+```{r}
+?confint
+```
+
+The only thing that we need to do is to pass the model object (i.e. the resulting object from using `lm`), and specify the level of confidence interval. This gives us CIs for the intercept and slopes in our model, helping us quantify the uncertainy with these estimates:
+
+```{r}
+confint(object = reg.model.2, level = .95)
+```
+**Comprehension Check: How would you interpret these CIs?**
+
+### Categorical Variables
+
+So far, our model has two *continuous* predictor variables. What if we were also interested in categorical predictors? For example, what if the day of the week impacts parent grumpiness, independently of parent or baby sleep? 
+
+Fortunately, `lm` can handle this easily. You just add the categorical variable into the formula, just like a continuous predictor:
+
+```{r}
+tutorial.dat$day <- as.factor(tutorial.dat$day)
+
+reg.model.3 <- lm(formula = parent.grump ~ parent.sleep + baby.sleep + day,
+                  data=tutorial.dat)
+summary(reg.model.3)
+```
+
+A few very important things to notice here. Each of our continuous variables got *one* estimate in the output above. But a categorical gets *k - 1* estimates, where k is the number of categories in the variable. So above we get 6 estimates since there are 7 days of the week. 
+
+How do we interpret these variables? Notice that we don't have an estimate for Monday (day = 1). This is known as the *reference* value: All of the estimates associated with the days of the week are *comparing* those days to Monday. 
+
+**Comprehension check: Knowing this, how would you interpret the `day2` estimate? How about `day 6`?**
+
+#### Dummy Variables: A Brief Interlude
+
+When we add a categorical variable to `lm`, under the hood R converts the variable to what are called **dummy variables**. A single categorical variable can be split into k-1 dummy variables that each take a value of either 0 or 1, indicating whether it takes the given value or not. 
+
+You can quickly make dummy variables with the package fastDummies (you'll need to install it before running this code):
+
+```{r, message = FALSE}
+library(fastDummies)
+dummies <- dummy_cols(tutorial.dat, select_columns = c("day")) 
+
+dummies %>% 
+  select(starts_with('day')) %>% 
+  head(dummies, n = 7)
+```
+
+We could enter each of these independently (leaving out one!) to our model to get an identical output as that above.
+
+```{r}
+dummyMod <- lm(formula = parent.grump ~ parent.sleep + baby.sleep + 
+                 day_2 + day_3 + day_4 + day_5 + day_6 + day_7,
+                  data=dummies)
+summary(dummyMod)
+```
+
+There are some models in R that require you to manually create dummy variables like this. But fortunately `lm` is not one of them! So while it is good to know what a dummy variable is and how to create them, you won't need them for regression models in this class.
+
+**Comprehension check: Why do you have to leave one of the dummy variables out of a regression formula?**
+
+## Checking Assumptions
+
+This section goes over how to check assumptions for linear regression. We'll introduce a number of plots here, and you'll notice that--for once--we are not using ggplot! You can absolutely make all of these plots in ggplot, but here we'll take advantage of some built-in R arguments that make these plots really easy to create.
+
+Many of these assumptions involve the *residuals* of our model.
+
+**Comprehension check: What is a residual in the context of linear regression?**
+
+Note that you can access the residuals directly from model objects, if you'd like:
+
+```{r}
+head(reg.model.3$residuals)
+```
+
+### Linearity
+
+To assess linearity, we'll use a Residuals vs Fitted plot. If the residuals vs fits points are uniformly distributed around a horizontal line with no noticeable patterns, this suggests a strong possibility of a linear relationship.
+
+**Comprehension check: What is a fitted value in our regression model?**
+
+Note that similar to our residuals above, we can directly access our fitted values from our model object:
+
+```{r}
+head(reg.model.3$fitted.values)
+```
+
+But in R we can create a residual v fitted plot just by passing the whole regression model object to the plot function and setting the argument "which" equal to 1:
+
+```{r}
+plot(reg.model.2, which=1)
+```
+
+As we can see, this plot not only draws the scatter plot showing the fitted value against the residuals, but also a line of the relationship between the fitted values and the residuals. Ideally, this should be a straight, perfectly horizontal line. Here we see some curvature, but it seems quite mild, so we shouldn't worry too much about it.
+
+### Normality of the Residuals
+
+Another important assumption is that the residuals of our model should be normally distributed. We already know how to assess if a distribution is normal! Let's try plotting the residuals, pulled from our model object (here we're back to ggplot):
+
+```{r}
+#must be in a data frame for ggplot
+as.data.frame(reg.model.3$residuals) %>% 
+  ggplot(aes(x = reg.model.3$residuals)) + geom_histogram(bins = 15)
+```
+
+We should also check that the mean of the residuals is about 0:
+```{r}
+summary(reg.model.3$residuals)
+```
+
+Looks good to me!
+
+#### Practice Problem
+
+You can also assess normality of residuals using QQ norm plots and the Shapiro-Wilkes test, like we learned about in our "Checking Assumptions" tutorial.
+
+Practice each of these methods below on the residuals of `reg.model.3`:
+```{r}
+# Your code here
+```
+
+
+### Equal Variance of the Residuals
+
+Here again we turn our attention to the residuals to see if the variance is more or less constant. For this, we'll use a *Scale-Location* plot, also known as a spread-location plot, which displays the **square root of the absolute standardized residuals** (or studentized residuals) against the **fitted values** of the dependent variable. 
+
+If the variance of the residuals is constant (i.e., homogenous) across all fitted values, the points in the plot will be randomly scattered around a horizontal line at a constant distance from zero. However, if there is a pattern or trend in the plot, it may suggest that the variance of the residuals is not constant, and that the assumptions of homogeneity of variance (also called homoscedasticity) is violated.
+
+In R, this kind of plot can be easily created by again using the `plot` function, this time setting the argument "which" equal 3:
+
+```{r}
+plot(reg.model.3, which=3)
+```
+
+As we can see here, our line is almost straight and flat, suggesting that 
+indeed our residuals have a constant variance.
+
+### No Extreme Outliers
+
+We have two options to check this assumption. 
+
+The first involves making use of **Cook's distance**, which is a measure of the influence of individual data points on the regression coefficients in a regression model. **It calculates the change in the regression coefficients when a particular observation is deleted from the dataset.** 
+
+A large value of Cook's distance for a given observation suggests that the observation has a large influence on the regression coefficients and may be an outlier or influential point that should be examined more closely.
+
+Cook's distance values range from 0 to 1, with larger values indicating greater influence of the observation on the regression coefficients. Generally, a threshold value of 1 is used to identify influential observations.
+
+In R, we can generate a plot for the Cook's distances of each observation by means of the plot function and setting the argument "which" equal 4:
+
+```{r}
+plot(reg.model.2, which=4)
+```
+
+**Practice Problem**
+Change one value of parent.grump to 250 and re-run your regression. Then create the Cook's Distance plot above. (Hint: make a copy of the dataset before adjusting the values.) What do you notice?
+
+```{r}
+#your code here
+```
+
+
+And alternative method for identifying outliers is by means of a *Residuals vs Leverage* plot, which displays the standardized residuals against the leverage values of the observations. **Leverage values are a measure of how much an observation deviates from the average value of the predictor variables.**
+
+Large leverage observations are those that have extreme values on one or more predictor variables. In general, observations with large leverage values and large residuals are of greater concern because they have the potential to exert a strong influence on the regression coefficients. If an observation has both a large leverage value and a large residual, it can be considered an influential point that should be examined more closely. Conversely, if an observation has a low leverage value and a small residual, it can be considered a low-influence point that is unlikely to have a significant impact on the regression coefficients.
+
+In R we can plot this by means of the `plot` function and setting the argument "which" equal 5:
+
+```{r}
+plot(reg.model.2, which=5)
+```
+
+As we can see, both plots suggest a few points as possible outliers. Are these so? The quickest way of checking this is by running the regression with every outlier candidate excluded and see what happens to the model performance and to the regression coefficients. If they really are substantially different, we may to need to take that observation into further consideration. If we believe this observation was not supposed to be there and is badly distorting our results, we might consider excluding it.
+
+How can we rerun our regression models excluding a particular observation? Well, the `lm` function has the argument "subset" that allows us to do that. Let's see this, separately, for the points 64 and 85 of our dataset:
+
+```{r}
+lm( formula = parent.grump ~ parent.sleep + baby.sleep, # same formula
+data = tutorial.dat, # same data frame...
+subset = -64)
+
+lm( formula = parent.grump ~ parent.sleep + baby.sleep, # same formula
+data = tutorial.dat, # same data frame...
+subset = -85)
+```
+
+
+As we can see, in both cases the regression coefficients barely change in comparison to the values using the full dataset, so we can infer that these points are no problem.
+
+**Practice problem**:
+What happens when you make a residuals vs leverage plot with your modified dataset (the one you created in the prior practice problem)?
+
+```{r}
+# Your code here
+```
+
+
+### Independent Residuals
+
+To check this assumption, we will create an ACF plot, which a commonly used diagnostic tool to check for correlations between residuals (i.e. also known as autocorrelations) in regression analysis. An autocorrelation is a measure of the degree of similarity between a series of observations and a delayed version of itself.
+
+High autocorrelation among residuals indicates that this assumption has been violated. 
+
+
+An ACF is created by plotting the residuals against **their own lagged values**. In R, this kind of plots can be generated using the acf function as follows:
+
+```{r}
+acf(reg.model.2$residuals, type = "correlation")
+```
+
+In interpreting this plot, we ignore the first value in this graph (at Lag = 0) because it corresponds to the correlation of each variable with itself, which is always 1. As we can see in this plot, all autocorrelations from the residuals are small, indicating independence between them. If you see many long lines in this plot, or patterns of lines, you may have autocorrelation among your residuals.
+
+
+### No Collinearity Between Independent Variables
+
+Collinearity means that two variables are highly correlated. In other words, they *overlap*, and including both in a model can cause problems like large errors and model instability. 
+
+The good news is that we already know how to test correlations! If a correlation is high--say, above .7 or so--we would probably be concerned about collinearity.
+
+```{r}
+cor.test(tutorial.dat$parent.sleep, tutorial.dat$baby.sleep)
+```
+
+IMPORTANT: We've only scratched the surface in terms of tools for checking model assumptions. There are many packages in R that offer other ways to assess some of these assumptions!

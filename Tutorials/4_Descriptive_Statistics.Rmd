@@ -1,0 +1,376 @@
+---
+title: "Descriptive Statistics"
+author: "Fiona Horner"
+output: 
+  html_document:
+    theme: journal
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+*Note: The content in this tutorial is based off of [Javier Rasero's](https://github.com/jrasero/cm-85309-2023) prior 309 course content.*
+
+
+In this tutorial, you'll learn how to use R to describe your data, both numerically and visually.
+
+Go ahead and load the tidyverse, just so we have it.
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+```
+
+
+Any time that you get a new dataset, one of the first tasks that you have to do is to find ways of summarizing the data in a compact, easily understood fashion. This is what descriptive statistics (as opposed to inferential statistics) is all about.
+
+
+For practice, we'll use Student's Sleep Data, which is included in R.
+
+```{r}
+?sleep
+str(sleep)
+```
+
+
+## Measures of Descriptive Statistics
+
+### Measures of Central Tendency
+
+#### Mean
+
+The mean of a set of observations is the average, i.e., the sum of all values divided by the total number of values.
+
+$$ \bar X = \frac{1}{N}(X_{1} + X_{2} + ... + X_{N})  $$
+$$ = $$
+$$ \frac{1}{N} \sum_{i = 1}^NX_{i} $$
+
+In R, we can manually calculate this like so:
+```{r}
+sum(sleep$extra)/length(sleep$extra)
+```
+
+##### Comprehension check: Can you think of an instance when you would NOT want to use `length` in the denominator?
+
+Of course, the mean is one of the most commonly used descriptive statistics, so R also has a built-in function for it:
+
+```{r}
+mean(sleep$extra)
+```
+
+
+If your data has outliers, you can also calculate what is known as the *trimmed mean*. This will drop a proportion of data points from each end of your distribution:
+
+```{r}
+#we don't have outliers in these data, but just to illustrate:
+mean(sleep$extra, trim = .05)
+```
+
+
+#### Median
+The median of a set of ordered values is the middle value.
+
+In R, we can use `sort()` to sort the values like so:
+```{r}
+sorted <- sort(sleep$extra)
+sorted
+#how many values do we have?
+length(sorted)
+```
+
+Since we have an even number of values, the center values would be both the 10th and 11th values. We have to take the middle of these two values:
+```{r}
+sorted[10]
+sorted[11]
+
+#the median
+(sorted[10] + sorted[11])/2
+```
+
+But again, R provides an easy built-in function for this:
+```{r}
+median(sleep$extra)
+```
+
+#### Mode
+
+The mode is the value that occurs most frequently in a sample. 
+
+This is another very intuitive measure, but R does not have a built-in function for it. You will write such a function in a future assignment!
+
+
+### Measures of Variability
+
+Variability refers to the *spread* of a distribution. Are the values fairly similar to each other? Or do they vary widely?
+
+#### Range
+
+Range is just the difference between the highest and lowest values in a sample. (Or sometimes is the values themselves, implying their difference).
+
+```{r}
+min(sleep$extra)
+max(sleep$extra)
+
+max(sleep$extra) - min(sleep$extra)
+```
+
+R's built-in `range()` function gives us the endpoints:
+```{r}
+range(sleep$extra)
+```
+
+##### Comprehension check: What is a key limitation of the range as a measure of variability?
+
+
+#### Interquartile Range (IQR)
+
+The IQR is the difference between the 25th and 75th percentile or your data. In other words, it's the range for the middle 50% or your data.
+
+```{r}
+quantile( x = sleep$extra, probs = c(.25, .75))
+```
+
+Again, R has a built-in `IQR` function:
+```{r}
+IQR(sleep$extra)
+```
+
+
+#### Variance
+
+The variance is one of the most important measures we'll cover in this section. Remember that the variance is sometimes called the "mean square deviation". This term can help us better understand the equation for a variance:
+
+$$  s^2 = \frac{1}{N} \sum_{i = 1}^N(X_{i} -\bar X)^2$$
+
+##### Comprehension check: Why do we use $s$ here and not $\sigma$?
+
+Given a vector `v`, let's write a function together that can calculate the variance of `v`:
+```{r}
+v <- sleep$extra
+
+getVariance <- function(v){
+  #stuff and things go here
+}
+```
+
+Let's compare our function to the built-in function, `var()`:
+```{r}
+#getVariance(v)
+#var(v)
+```
+
+Oh no! Did we do something wrong? R's formula actually divides by **N - 1** rather than by N. We'll talk about why soon!
+
+
+#### Standard Deviation
+
+The standard deviation is closely related to the variance. In fact, it is the square root of the variance $s^2$-- i.e., $s$. That's why it is sometimes called the *root mean squared deviation*, or RMSD. It aims to provide information about the dispersion of data in their same units.
+
+$$  s = \sqrt { {\frac{1}{N} \sum_{i = 1}^N(X_{i} -\bar X)^2}}$$
+
+We could calculate this by slightly adjusting our above function. But we'll usually rely on the built-in function `sd()`:
+```{r}
+sd(sleep$extra)
+```
+
+### Measures of Shape
+
+#### Skewness
+
+Skewness is a measure of the **asymmetry** of a distribution
+
+$$skew_{X} = \frac{1}{Ns^3}\sum_{i = 1}^N(X_{i} - \bar X)^3 $$
+
+#### Comprehension check: Does the plot below show positive skew or negative skew:
+
+```{r}
+set.seed(1234)
+x <- rbeta(1000, 2, 6)
+xDF <- as.data.frame(x)
+ggplot(xDF, aes(x = x)) + geom_histogram(bins = 50)
+```
+
+How about for our sleep data? (We don't have a lot of data, but take your best guess.)
+```{r}
+ggplot(sleep, aes(x = extra)) + geom_histogram(bins = 7)
+```
+
+R does not have a built-in skew function, but a package called `psych` does. Install and load `psych` now. (Note that it's better to run the install code in the console, rather than your .RMD)
+
+```{r, message=FALSE}
+#install.packages('psych')
+library(psych)
+```
+
+Let's get the skew of our sleep data and our simulated data. Uncomment and run the below code:
+```{r}
+#skew(sleep$extra)
+#skew(xDF$x)
+```
+
+Let's compare to a distribution skewed in the other direction:
+```{r}
+set.seed(1234)
+x <- rbeta(1000, 5, 2)
+xDF2 <- as.data.frame(x)
+ggplot(xDF2, aes(x = x)) + geom_histogram(bins = 50)
+```
+
+Is this positive or negative skew?
+Let's confirm!
+
+```{r}
+# uncomment and run
+#skew(xDF2$x)
+```
+
+
+#### Kurtosis
+
+Kurtosis is a measure of the "pointiness" of a distribution. It is used less often than skew to describe a sample.
+
+$$\frac{1}{Ns^4}\sum_{i = 1}^N(X_{i} - \bar X)^4 -3 $$
+
+We'll just use the `kurtosi()` function from `psych`:
+```{r}
+kurtosi(sleep$extra)
+kurtosi(xDF2$x)
+```
+
+## Visualizations as Descriptives
+
+We just covered a bunch of different ways to *numerically* describe a given sample. But sometimes it's easier to show a clear visualization, rather than a list of numbers. A picture is worth a thousand numbers!
+
+We'll continue to use ggplot, which we loaded previously with the tidyverse, for plotting.
+
+Let's use these ACT data again for this section
+```{r}
+sat.dat<-read.csv("https://vincentarelbundock.github.io/Rdatasets/csv/psych/sat.act.csv")
+sat.dat$gender<- as.factor( sat.dat$gender )
+sat.dat$education<- as.factor( sat.dat$education )
+```
+
+### Boxplots
+
+Boxplots (also known as box and whisker plots) offer a way to visualize both the central tendency (median) and spread (IQR, min/max) of a *continuous* variable. It's particularly helpful when you want to compare these values across different levels of a categorical variable (aka a **factor** in R).
+
+Create a boxplot with `geom_boxplot()`:
+
+```{r}
+ggplot(data = sat.dat, mapping = aes(x=education, y=ACT)) + geom_boxplot()
+```
+
+### Violin Plots
+
+Violin plots are similar to boxplots, but also show the probability density of the data a different values. Typically, these are shown in addition to boxplots. 
+
+```{r}
+ggplot(data = sat.dat, mapping = aes(x=education, y=ACT)) + geom_violin() + geom_boxplot()
+```
+
+We can make this look better by adjsuting the width of the boxplots and the transparency of the violins: 
+```{r}
+ggplot(data = sat.dat, mapping = aes(x=education, y=ACT)) + 
+  geom_boxplot(width=0.4) + 
+  geom_violin(alpha=0.7)
+```
+
+### Stat_summary
+
+Another nice way of summarizing your data visually is by using the function `stat_summary` from ggplot. Let's look at the documentation:
+```{r}
+?stat_summary
+```
+
+By default, `stat_summary` will display the mean and standard error (i.e. $\frac{\sigma}{\sqrt{N}}$) across each group. You can play with this by adjusting the arguments "fun.data" or "fun.min", "fun", "fun.max" (see documentation for more details). Alternatively, you could generate a similar plot using the geometry `geom_errorbar`. We will see this in a future tutorial...
+
+
+```{r}
+ggplot(data = sat.dat, mapping = aes(x = education, y = ACT)) + stat_summary()
+```
+
+##### Comprehension check: Compare the plotted data for education = 2 in this plot and the prior plot. Why is the central tendency of this group lower in the `stat_summary` plot?
+
+## Useful functions for summarizing data
+
+### `summary`
+
+This is a built-in R function, which prints out some useful descriptive information. It can accept a vector or a data frame.
+
+- If a **continous** variable, It gives us the minimum and maximum values (i.e., the range), the first and third quartiles (i.e. the IQR), the mean and the median.
+
+```{r}
+summary(sat.dat$ACT)
+```
+
+- If a **logical** variable, it gives the number of Trues and Falses:
+
+```{r}
+summary(sat.dat$ACT>29)
+```
+
+- If a **factor** variable, it gives the number of occurrences by each factor:
+```{r}
+summary(sat.dat$education)
+summary(sat.dat$gender)
+```
+
+Note that this could also be accomplished with the function `table`:
+```{r}
+table(sat.dat$education)
+```
+
+If you pass in a data frame, rather than a vector, it will summarize each column:
+
+```{r}
+summary(sat.dat)
+```
+
+### `describe`
+
+This function is contained in the **psych** library (which should already be loaded), and basically yields a data frame with most of the relevant statistics that we have studied:
+
+- item name
+- item number
+- number of valid cases
+- mean
+- standard deviation
+- trimmed mean (with trim defaulting to .1)
+- median (standard or interpolated
+- mad: median absolute deviation (from the median).
+- minimum
+- maximum
+- skew
+- kurtosis
+- standard error
+
+```{r}
+describe(sat.dat)
+```
+
+Note that the asterisk denotes a factor variable. Based on what we know about factors, how would you interpret these values?
+
+You can also use `describeBy`, which applies `describe` across each group of a given factor:
+```{r}
+describeBy(x = sat.dat$ACT, group = sat.dat$gender)
+```
+
+### `summarise`
+
+The last three functions that we have seen allow you to summarize very important information for describing the data. However, they yield a very specific output. How could we choose which output to summarize? We can do this with `summarise` function, which is part of the **tidyverse** library.
+
+```{r}
+summarise(sat.dat, 
+          sampleMean = mean(ACT), 
+          sampleMedian = median(ACT), 
+          sd = sd(ACT), 
+          iqr = IQR(ACT),
+          minimum = min(ACT), 
+          maximum = max(ACT),
+          q1 = quantile(ACT, 0.25),  # first quartile, 25th quantile
+          q3 = quantile(ACT, 0.75))  # third quartile, 75th quantile
+```
+
+Note that summarise outputs a new dataframe. We'll learn more about the tidyverse and the cool things you can do with this function in the future!

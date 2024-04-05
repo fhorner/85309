@@ -1,0 +1,121 @@
+---
+title: "Plotting Categorical Variables"
+author: "Fiona"
+output: 
+  html_document:
+    theme: journal
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+---
+
+This tutorial is based on [Javier Rasero's](https://github.com/jrasero/cm-85309-2023) prior 309 course content.
+
+---
+
+Plotting categorical data is an important step in exploring and visualizing the distribution and relationships between categorical variables. In this tutorial, we will cover some common plots for categorical data using R. As usual, we will be employing ggplot for this.
+
+```{r, message=FALSE}
+library(tidyverse)
+```
+
+We'll use simulated data from a clinical trial. The trial involved administering a drug to some participants and a placebo to others, and monitoring their progress. At the end of the study, it was determined whether the participants' progress had worsened, remained the same, or improved.
+
+These are the same data we saw in tutorial 11.
+
+```{r}
+dat<-read.csv("https://raw.githubusercontent.com/jrasero/cm-85309-2023/main/datasets/tutorial8chisquare.csv")
+head(dat)
+```
+
+## Bar plots
+
+A bar plot is the simplest plot to show the frequency or proportion of each category in one categorical variable. To create a bar plot in R, we can use `geom_bar.`
+
+```{r}
+ggplot(data = dat, mapping = aes(group)) + geom_bar()
+
+ggplot(data = dat, mapping = aes(evolution)) + geom_bar()
+```
+
+This is nice, but it only shows the information in one categorical variable at a time. Sometimes, we will want to see the relationship between two categorical variables, and for that, we will need to incorporate both variables to the same plot. This can be achieved using either a grouped bar plot, or a stacked bar plot.
+
+### Grouped Bar Plot
+
+Grouped bar plots give us distributions of categorical variables *within* other categories. For example, we can see the distribution of trial outcomes divided across the two treatment groups.
+
+To create grouped bar charts, add a `fill` argument in aes. This specifies the variable to fill the bars (i.e., color code the bars).
+
+```{r}
+ggplot(data = dat, mapping = aes(x=group, fill=evolution)) + geom_bar()
+```
+
+
+Here we see that the bars are divided by the "evolution" (outcome) variable. But it's still kind of hard to compare these across the Drug and Placebo groups. Using `position = 'dodge'` can help here. This puts our outcome bars next to each other rather than on top of each other.
+
+```{r}
+ggplot(data = dat, mapping = aes(x=group, fill=evolution)) + 
+  geom_bar(position = 'dodge')
+```
+
+
+### Stacked Bar Plot
+
+Stacked bar plots are similar to our first iteration of the grouped bar charts above. The difference is that it shows the proportion (rather than the count) within each group. This is another way to make it easier to compare across the two treatment conditions.
+
+```{r}
+ggplot(data = dat, mapping = aes(x=group, fill=evolution)) + 
+  geom_bar(position = "fill") +
+  ylab("proportion")
+```
+
+We can see that similar proportions of participants across the two groups had an outcome of "Same", even though the frequencies were different (as seen in prior plot).
+
+You can also add the counts as labels on top of these plots to more clearly represent the data. To do this, you must specify the counts for each group.
+
+One way to do this is to use the `stat_*` functions provided by ggplot, which offer computed aesthetics such as bar height for a bar plot. To add labels to your plot using `stat_count`, you must specify how the data should be represented by setting the argument `geom = "text"`. 
+
+
+```{r}
+ggplot(data = dat, mapping = aes(x=group, fill=evolution)) + 
+  geom_bar(position = "fill") + 
+  ylab("proportion") +
+  #stat count counts your observations and adds the labels:
+    stat_count(geom = "text", 
+               aes(label = after_stat(count)),
+               position=position_fill(vjust=0.5),
+               size=10,
+               colour="black")
+```
+
+
+
+This is great, but wouldn't it be even better if we could show the proportions instead of the actual observed occurrences that depend on the total number of observations in each categorical level? In the end, when analyzing categorical data to detect differences across populations, we should look at the proportions. Here below is an example of how to do this (found in [stackoverflow](https://stackoverflow.com/questions/63653351/how-to-use-stat-count-to-label-a-bar-chart-with-counts-or-percentages-in-ggplo)
+
+```{r}
+ggplot(data = dat, mapping = aes(x=group, fill=evolution)) + geom_bar(position = "fill") + 
+ylab("proportion") +
+    stat_count(geom = "text", 
+               aes(label = after_stat(round(100*count / tapply(count, x, sum)[as.character(x)], 2))),
+               position=position_fill(vjust=0.5),
+               size=10,
+               colour="black")
+```
+
+## Mosaic Plot
+
+Another fancy way of showing the the relationship between two categorical variables in a way that reflects the proportions of each category is by means of a mosaic plot. In this case, to create a mosaic plot we can just use the `mosaicplot` R built-in function (not ggplot).
+
+You can see that these are similar to the stacked bar plots above.
+
+```{r}
+mosaicplot(table(dat$group, dat$evolution))
+mosaicplot(group~evolution, data = dat)
+```
+

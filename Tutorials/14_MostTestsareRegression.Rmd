@@ -1,0 +1,335 @@
+---
+title: "Most Tests are Just Regression!"
+author: "Fiona"
+output: 
+  html_document:
+    theme: journal
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This tutorial demonstrates that many of the statistical tests we've covered in this course, including t-tests, correlation, ANOVA, and chi-square, are all essentially special versions of regression. It also aims to help you review the many tests we've learned so far.
+
+This tutorial draws from https://lindeloev.github.io/tests-as-linear. You are more than welcome to visit this page for more details.
+
+### One sample t-test
+
+**Comprehension check: What are the null/alternative hypotheses a one-sample t-test?**
+
+Write out the hypotheses below: 
+
+*We'll write this together*
+
+#### Simulate Data
+
+First we'll simulate some sample data:
+
+```{r, message=FALSE}
+library(tidyverse)
+set.seed(123) #so we get the same answer
+y.1<-rnorm(n = 50, mean = 3, sd = 5)
+
+dat1 <- data.frame(y = y.1) 
+head(dat1)
+```
+
+#### As a t-test
+
+How would we conduct this test as a one-sample t-test?
+
+```{r}
+#We'll write this together
+
+```
+
+#### As regression
+
+In a regression formula, you can use `1` to run a model with *no* predictors. This is equivalent to predicting your outcome based on just the *intercept*. 
+
+**Comprehension check: If you don't have any other information (i.e., predictors), what is the best guess when predicting an outcome variable Y? Put another way, what is your *expected value* here...?**
+
+
+```{r}
+summary(lm(y ~ 1, data = dat1))
+```
+
+Compare this regression output to the t-test output above. What similarities do you notice? It may be helpful to think about how you would plot this regression model.
+
+
+### Two-sample t-tests
+
+Two-sample t-tests are appropriate when we have two groups (categories) of a continuous variable. 
+
+**Comprehension check: What are the null/alternative hypotheses for a two-sample t-test?**
+
+Write out the hypotheses below: 
+
+*We'll write this together*
+
+
+#### Simulate data
+```{r}
+set.seed(1234)
+dat2<-rbind(data.frame(value=rnorm(25, mean = 10, sd = 2), group='a'),
+                  data.frame(value=rnorm(25, mean = 11, sd = 2), group='b'))
+
+head(dat2)
+```
+
+#### As a t-test
+
+How would you test these hypotheses with a t-test?
+
+```{r}
+#We'll write this together
+
+```
+
+
+#### As regression
+
+The syntax for our regression model looks very similar to the formula version of a t-test:
+
+```{r}
+summary(lm(value ~ group, data = dat2))
+```
+
+Which parts of the regression output matches the t-test output?
+
+### ANOVA
+
+ANOVAs are appropriate when we have three or more groups (categories) of a continuous variable.
+
+**Comprehension check: What are the null/alternative hypotheses for an ANOVA?**
+
+Write out the hypotheses below: 
+
+*We'll write this together*
+
+#### Simulate Data
+
+```{r}
+set.seed(1234)
+# Generate random data for group 1 with mean 10 and standard deviation 2
+dat3<-rbind(data.frame(value=rnorm(25, mean = 10, sd = 2), group='a'),
+                  data.frame(value=rnorm(25, mean = 12, sd = 2), group='b'), 
+                  data.frame(value=rnorm(25, mean = 10, sd = 2), group='c'))
+head(dat3)
+```
+
+
+#### As ANOVA
+
+How would we conduct this test as an ANOVA?
+```{r}
+#We'll write this together
+```
+
+#### As regression
+
+Because ANOVAs already use the formula syntax, they again map very clearly onto the regression function:
+```{r}
+summary(lm(value ~ group, data = dat3))
+```
+
+Which parts of the regression output match the t-test output above?
+
+What would be another way to get the p-values for the specific levels of our categorical "group" variable (i.e., from the coefficient table)? Do you see a trade off here between using ANOVA versus regression? 
+
+
+### Correlation
+
+**Comprehension check: What are the null/alternative hypotheses for a correlation test?**
+
+Write out the hypotheses below: 
+
+*We'll write this together*
+
+#### Simulate Data
+```{r}
+set.seed(1234)
+x <- rnorm(50)
+y <- 0.1*x + rnorm(50, sd = 1e-1)
+dat4 <- data.frame(x,y)
+head(dat4)
+```
+
+#### As correlation
+
+How would we test these hypotheses using a correlation test?
+
+```{r}
+#We'll write this together
+
+```
+
+
+#### As regression
+
+```{r}
+mod.sum <- summary(lm(y ~ x, data = dat4))
+mod.sum
+```
+
+What parts of this regression output match the correlation output above?
+
+```{r}
+#We'll do this together
+```
+
+
+Recall that the correlation coefficient, $\rho$, and the coefficient for a simple linear regression, $\beta$, capture the same information but on *different scales*. If we *scale* our x and y variables such that they are standardized (i.e., have a mean of 0 and standard deviation of 1), the coefficients match:
+
+```{r}
+#scale both variables:
+dat4_s <- dat4 %>% 
+  scale() %>% 
+  as.data.frame()
+
+#re-run both tests
+cor.test(dat4_s$x, dat4_s$y)
+summary(lm(y ~ x, data = dat4_s))
+```
+
+We get the same answer for the correlation coefficient, because this test is standardized by definition. But now we see the regression coefficient is the exact same value.
+
+
+### Pearson's Chi-square test
+
+Things get a little more confusing when we move to chi-squared tests. But it's still all regression.
+
+Pearson's chi-square tests are for when we have a *single* categorical variable.
+
+**Comprehension check: What are the null/alternative hypotheses for Pearson's chi-squared test?**
+
+Write out the hypotheses below: 
+
+*We'll write this together*
+
+#### Simulate Data
+
+We'll simulate a categorical variable with three levels, "happy", "neutral", and "sad".
+
+```{r}
+set.seed(123)
+
+Y<-sapply(c(1:35), function(x) sample(c("happy","neutral","sad"), size=1))
+Y<-c(rep("happy", 15), Y)
+
+#remember we need frequency tables for chi-squared tests
+Y.table<-table(Y)
+Y.table
+```
+
+#### As a chi-square test
+
+First, how would we run this as a chi-squared test?
+```{r}
+#We'll write this together
+
+```
+
+#### As regression
+
+In regression, the outcome (y variable) must be continuous. So how do we turn this test--based on a single categorical variable--into regression? 
+
+Instead of using the categorical variable itself (i.e., object `Y`), we'll still use the frequency table that we created for the chi-squared test. Thus, we'll be predicting the *counts* of each level of the categorical variable. Let's turn our frequency table into a data frame so it works with our next function:
+
+```{r}
+dat2 <-data.frame(mood=names(Y.table), counts=as.vector(Y.table))
+dat2 
+```
+
+
+To do this, we need to use a different distribution than usual: the Poisson distribution, which is specifically built around count data. (More formally, it is a discrete probability distribution that expresses the probability of a given number of events occurring in a fixed interval of time at a known constant mean rate. You won't be tested on this...)
+
+To change our distribution from our standard normal distribution to a poisson distribution, we need to use the function `glm` instead of `lm`. This stands for "general linear model", and has much more flexibility than `lm`.
+
+Conceptually, our chi-square above is telling us whether the mood category can predict the observed frequency better than just the *mean* frequency. To do this with regression, we need to run two models:
+
+First: A model predicting counts with just the intercept (sometimes called a *null* model):
+
+```{r}
+glm.null <- glm(counts ~ 1, data = dat2, family = poisson())
+summary(glm.null)
+```
+
+Second: A model predicting counts from the mood category:
+
+```{r}
+glm.mood <- glm(counts ~ mood, data = dat2, family = poisson())
+summary(glm.mood)
+```
+
+You'll notice we still don't see the same information from our chi-square test. We have to do one more step: Compare these two models. This function tells us whether the model with "mood" as a predictor predicts the variance in "counts" better than the intercept of counts:
+
+```{r}
+anova(glm.null, glm.mood, test = "Rao")
+```
+
+And we see the same p-value from our chi-square test!
+
+**Comprehension check: How does the null model relate to the null hypotheses for a chi-square test?**
+
+### Chi-square test of Independence
+
+**Comprehension check: What are the null/alternative hypotheses for a chi-square test of independence?**
+
+Write out the hypotheses below: 
+
+*We'll write this together*
+
+#### Simulate Data
+
+```{r}
+dat5 <- data.frame(group = c(rep("Drug", 69), rep("Placebo", 102)),
+                   symptoms = c(rep("Better", 30), rep("Same", 28), rep("Worse", 11),
+                               c(rep("Better", 25), rep("Same", 44), rep("Worse", 33))))
+dat.table<-table(dat5)
+dat.table
+```
+
+#### As a chi-square test
+
+How would we run this test as a chi-square?
+```{r}
+#We'll run this together
+
+```
+
+#### As regression
+
+Similar to our prior example, we need to predict our *frequencies* rather than our categorical variables, if we want to do this as a regression. So we need to put our frequency table into a dataframe again:
+```{r}
+dat5_lm<-as.data.frame(dat.table)
+dat5_lm
+```
+
+
+Now we know that this test assesses how the *combination* of two independent variables predicts the observed frequencies. In regression, this is captured by something called a statistical *interaction*.
+
+Interactions occur when the effect of one variable on your outcome *depends* on another variable. Remember our outcomes here are the observed frequencies. So this means that the effect of symptom on frequencies depends on which treatment condition you are looking at. In other words, the expected number of people who got "Better" depends on if they got the treatment or the control.
+
+In regression, you add a statistical interaction with an asterisk, *. Remember to again use `glm` and a poisson distribution.
+
+```{r}
+summary(glm(Freq ~ group * symptoms, data = dat5_lm,
+            family = "poisson"))
+```
+
+Again, to get a comparable result as our chi-squared test above, we need to compare the model with this interaction to the model without this interaction:
+```{r}
+reg.full <- glm(Freq ~ group*symptoms, data = dat5_lm, family = poisson())
+reg.null <- glm(Freq ~ group + symptoms, data = dat5_lm, family = poisson())
+anova(reg.null, reg.full, test = 'Rao')
+```
+
+
+
+
+

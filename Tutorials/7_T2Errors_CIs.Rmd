@@ -1,0 +1,269 @@
+---
+title: "Type II Errors and Statistical Power"
+author: "Fiona"
+output: 
+  html_document:
+    theme: journal
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Visualizing Type II Error
+
+In this tutorial, we'll visualize type II errors and see how they are affected by the effect size (e.g., how far apart two means are) and sample size.
+
+We'll be using simulated data, so that we can directly manipulate these values and visualize the results. We'll aslo be using ggplot a lot -- including lots of features we haven't directly talked about yet. It's ok if you don't understand all of this code, since the point is just to visualize these concepts. But it's also a great opportunity to gain understanding in ggplot!
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+```
+
+As we just learned in class, the basic logic behind null hypothesis significance testing (NHST) is that if a certain value falls far enough away from the center of a given distribution, it probably doesn't belong to that distribution. Let's visualize this.
+
+First, we'll simulate a sampling distribution for a null distribution. This code is pretty much the same as what we saw in the prior tutorial, but it samples from a normal distribution with a given mean and sd (instead of a specific data frame) using `rnorm`.
+```{r}
+set.seed(85309)
+#Simulating a null distribution
+
+#This function randomly samples N values from a normal distribution
+#and finds the mean of that sample. 
+#We used something similar in the prior tutorial
+getNormalMean <- function(n, mean, sd){
+  rnorm(n, mean, sd) %>% 
+    mean()
+}
+
+#this code makes our mean sampling distribution
+#by getting the mean of a bunch of random samples
+simData <- data.frame(nullDist = replicate(5000, 
+                              getNormalMean(n =100, mean = 3, sd = 1)))
+
+valueToTest <- 3.25
+```
+
+Let's plot our sampling distribution! Again, it's ok if you don't understand all of this code.
+
+```{r}
+ggplot(simData) +
+  geom_density(aes(x = nullDist), fill = 'pink', 
+               alpha = .5, bw = .05) +
+  geom_vline(aes(xintercept = valueToTest), color = 'blue') +
+  annotate("text", x=3.27, y=2, label="Test Value", 
+           angle= 270, color = 'blue') +
+  theme_classic() +
+  labs(title = "Visualizing Type II Error",
+       x = NULL)+
+  #this line just centers the title
+  theme(plot.title = element_text(hjust = 0.5)) +
+  coord_cartesian(xlim = c(2.6, 3.6), ylim = c(0, 4))
+```
+
+These are simulated data so the distribution isn't perfect, but we can see that our null (pink) distribution is normal, and our test value (blue line) is on the outer tail of the null. From what we learned in lecture, this looks pretty far out on the tail of the null -- do you think it's significantly different? 
+
+We can find the 97.5th percentile of our data using R's `quantile` function, and visually compare this to our value:
+```{r}
+quant97.5 <- quantile(simData$nullDist, .975)
+
+#this code is just for plotting - you can ignore
+dens <- density(simData$nullDist, bw = .05)
+df <- data.frame(x=dens$x, y=dens$y)
+df$quant <- factor(findInterval(df$x, quant97.5))
+##
+
+ggplot(simData) +
+  geom_density(aes(x = nullDist), bw = .05, show.legend = FALSE) +
+  geom_ribbon(data = df, aes(x, ymin=0, ymax=y, fill=quant), 
+              alpha = .5) +
+  scale_fill_manual(values= c('pink', 'red'), guide="none") +
+  geom_vline(aes(xintercept = valueToTest), color = 'blue') +
+  annotate("text", x=3.27, y=3, label="Test Value", 
+           angle= 270, color = 'blue') +
+  theme_classic() +
+  labs(title = "Visualizing Type II Error",
+       x = NULL)+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  coord_cartesian(xlim = c(2.6, 3.6), ylim = c(0, 4))+
+  geom_vline(aes(xintercept = quant97.5), 
+             color = 'red', linetype = 'dashed') +
+  annotate("text", x=3.21, y=3, label="Alpha Threshold", 
+           angle= 270, color = 'red')
+
+```
+
+As we learned in class, a value is considered significantly different if it falls in the red area (critical region). The risk of incorrectly rejecting the null (type I error) is equal to the area of the red region
+
+**Comprehension Checks: **
+
+* **Why 97.5?**
+* **What is the area of the red region in this example?**
+
+We can think of this blue line as the center of another hypothetical distribution -- the alternative distribution. For example:
+```{r}
+set.seed(85309)
+
+#simulated alternative distribution data
+#centered around our blue line above
+simData$altDist = replicate(5000, 
+                        getNormalMean(n =100, mean = valueToTest, sd = .8))
+
+ggplot(simData) +
+  geom_density(aes(x = nullDist), bw = .05, show.legend = FALSE) +
+  geom_ribbon(data = df, aes(x, ymin=0, ymax=y, fill=quant), alpha = .5) +
+  scale_fill_manual(values= c('pink', 'red'), guide="none") +
+  geom_density(aes(x = altDist, linetype = "Density"), fill = 'blue', 
+                 alpha = .1, bw = .05, show.legend = FALSE) +
+  geom_vline(aes(xintercept = valueToTest), color = 'blue') +
+  annotate("text", x=3.27, y=3, label="Test Value", 
+           angle= 270, color = 'blue') +
+  theme_classic() +
+  labs(title = "Visualizing Type II Error",
+       x = NULL)+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  coord_cartesian(xlim = c(2.6, 3.6), ylim = c(0, 4.2))+
+  geom_vline(aes(xintercept = quant97.5), 
+             color = 'red', linetype = 'dashed') +
+  annotate("text", x=3.21, y=3, label="Alpha Threshold", 
+           angle= 270, color = 'red')
+```
+
+**Comprehension Check: **
+
+* **What is the probability of a type II error as visualized in this plot? I.e., which regions of the plot correspond to *failing* to reject the null when it should in fact be rejected?** It's important to remember here that you can only have a type II error *when the alternative hypothesis is true*, i.e., when there are in fact two distributions as visualized here. 
+
+**Power** is the complement of type II error, i.e., 1 - P(T2 Error). This can be interpreted as the probability of correctly rejecting the null hypothesis (which is what we want!) What area on the above plot corresponds to power?
+
+## Factors Influencing Power
+
+Visualizing our type II error this way helps us understand the factors that can increase our statistical power -- i.e., reduce the overlap of our two distributions. 
+
+#### Effect Size
+The first way to do this is by having a larger effect size. This just boils down to the two distributions being farther away from each other.
+
+Let's reset our test value to a higher number:
+```{r}
+valueToTest <- 3.4
+```
+
+This just shifts the whole distribution over, reducing overlap (and increasing power!)
+```{r}
+set.seed(85309)
+
+#simulated alternative distribution data
+#centered around our blue line above
+simData$altDist = replicate(5000, 
+                        getNormalMean(n =100, mean = valueToTest, sd = .8))
+
+ggplot(simData) +
+  geom_density(aes(x = nullDist), bw = .05, show.legend = FALSE) +
+  geom_ribbon(data = df, aes(x, ymin=0, ymax=y, fill=quant), alpha = .5) +
+  scale_fill_manual(values= c('pink', 'red'), guide="none") +
+  geom_density(aes(x = altDist, linetype = "Density"), fill = 'blue', 
+                 alpha = .1, bw = .05, show.legend = FALSE) +
+  geom_vline(aes(xintercept = valueToTest), color = 'blue') +
+  annotate("text", x=3.42, y=3, label="Test Value", angle= 270, color = 'blue') +
+  theme_classic() +
+  labs(title = "Visualizing Type II Error",
+       x = NULL)+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  coord_cartesian(xlim = c(2.6, 3.6), ylim = c(0, 4.2))+
+  geom_vline(aes(xintercept = quant97.5), color = 'red', linetype = 'dashed') +
+  annotate("text", x=3.21, y=3, label="Alpha Threshold", angle= 270, color = 'red')
+```
+
+**Comprehension check: Is this something we can manipulate in a research setting?**
+
+#### Variability
+
+The second way to do this is to make the blue distribution *skinnier*, i.e., less variable. 
+
+What is one way to reduce variability in a sampling distribution? 
+
+```{r}
+set.seed(85309)
+
+#simulated alternative distribution data
+#centered around our blue line above
+simData$altDist = replicate(5000, 
+                        getNormalMean(n =500, mean = valueToTest, sd = .8))
+
+ggplot(simData) +
+  geom_density(aes(x = nullDist), bw = .05, show.legend = FALSE) +
+  geom_ribbon(data = df, aes(x, ymin=0, ymax=y, fill=quant), alpha = .5) +
+  scale_fill_manual(values= c('pink', 'red'), guide="none") +
+  geom_density(aes(x = altDist, linetype = "Density"), fill = 'blue', 
+                 alpha = .1, bw = .05, show.legend = FALSE) +
+  geom_vline(aes(xintercept = valueToTest), color = 'blue') +
+  annotate("text", x=3.42, y=3, label="Test Value", angle= 270, color = 'blue') +
+  theme_classic() +
+  labs(title = "Visualizing Type II Error",
+       x = NULL)+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_vline(aes(xintercept = quant97.5), color = 'red', linetype = 'dashed') +
+  annotate("text", x=3.21, y=3, label="Alpha Threshold", angle= 270, color = 'red')
+```
+
+**Comprehension Check: Is this something we have control over in a research context?**
+
+## Confidence Intervals
+
+We can use some of these same functions to better understand confidence intervals. 
+
+Confidence intervals are typically given in percentages equal to 1-alpha, so usually 95%.
+
+If the data are normal and the population standard deviation is known, you use the z-score to build your confidence interval, in the form:
+
+$$ \bar{X} \pm Z * \frac{\sigma}{\sqrt{n}} $$
+
+In R, you can get the z-score for a given alpha using the `qnorm` function. For a 95% CI, we would do:
+```{r}
+z_alpha_0.025 <- qnorm(0.025) %>% round(2)
+z_alpha_0.025
+```
+
+**Comprehension check: Why is this value negative?**
+
+For example, given a hypothetical variable with a mean of 4, an N of 40, and a standard deviation of 3:
+```{r}
+mean = 4
+n = 40
+sigma = 3
+
+CIupper = mean + z_alpha_0.025 * (sigma/(sqrt(n)))
+CIlower = mean - z_alpha_0.025 * (sigma/(sqrt(n)))
+
+CIupper
+CIlower
+```
+
+
+If the distribution is not normal or if we don't know the population standard deviation, we instead use the t-distribution, which has fatter tails than the normal distribution. In R this is calculated with with the function `qt`. 
+
+Notice that the t-score is dependent on both the quantile (alpha/2, in this case) AND the sample size. As N increases, the t-distribution approaches the normal distribution. Here, N is represented by "df" which stands for degrees of freedom. Here that is n-1.
+```{r}
+t_alpha_0.025 <- qt(.025, df = 30) %>% round(2)
+t_alpha_0.025
+
+t_alpha_0.025 <- qt(.025, df = 40) %>% round(2)
+t_alpha_0.025
+```
+
+$$ \bar{X} \pm t_{df} * \frac{\hat{\sigma}}{\sqrt{n}} $$
+
+For example, given our hypothetical data:
+```{r}
+mean = 4
+n = 40
+sigma_hat = 3 #this is now an estimate
+tval <- round(qt(.025, df = n-1), 2)
+
+CIupper = mean + tval * (sigma_hat/(sqrt(n)))
+CIlower = mean - tval * (sigma_hat/(sqrt(n)))
+
+CIupper
+CIlower
+```

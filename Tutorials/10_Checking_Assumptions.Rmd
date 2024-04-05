@@ -1,0 +1,224 @@
+---
+title: "Checking Model Assumptions"
+author: "Fiona"
+output: 
+  html_document:
+    theme: journal
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This tutorial is based on [Javier Rasero's](https://github.com/jrasero/cm-85309-2023) prior 309 course content.
+
+---
+
+
+Any time we introduce a new statistical test, one of the things that we mention is that these are only valid if they satisfy certain conditions. 
+
+One of those conditions is normality, which applies to t-test or ANOVA and which we should be worrying about particularly when the sample sizes are relatively small.
+
+Another assumption is the homogeneity of variance, which is essential if you want to perform an ANOVA test, or a Student's t-test (do not confuse with the Welch's t-test).
+
+## Normality
+
+We'll start by simulating some distributions:
+
+```{r, message=FALSE}
+library(tidyverse)
+set.seed(3)
+
+symmetric <- data.frame(sample = 1:1000,
+                        value = rbeta(1000, 10, 10),
+                        type = "symmetric")
+
+right_skewed <- data.frame(sample = 1:1000,
+                           value = rbeta(1000, 1, 5),
+                           type = "right skewed")
+
+left_skewed <- data.frame(sample = 1:1000,
+                          value = rbeta(1000, 5, 1),
+                          type = "left skewed")
+
+uniform <- data.frame(sample = 1:1000,
+                      value = rbeta(1000, 1, 1),
+                      type = "uniform")
+
+distributions <- rbind(right_skewed, left_skewed, symmetric, uniform)
+```
+
+
+### Visually
+
+#### Histograms
+
+The most straightforward way to assess normality -- which we've already been doing in this class -- is to just look at a histogram or density plot of our distribution.
+
+(This code uses `facet_grid` to plot all our distributions side-by-side.)
+
+```{r}
+ggplot(distributions, aes(x = value, fill = type)) + 
+  facet_grid(~type) + 
+  geom_histogram() + 
+  theme(legend.position = "none")
+```
+
+You can also add a density curve to better visualize the shape:
+
+```{r}
+ggplot(distributions, aes(x = value, fill = type)) + 
+  facet_grid(~type) + 
+  #these lines are different:
+  geom_histogram(aes(y = after_stat(density))) + 
+  #lwd is line width
+  #linetype = 2 makes it dashed
+  geom_density(lwd = .5, linetype = 2, colour = 'black') + 
+  ##
+  theme(legend.position = "none")  
+```
+
+We can clearly see that only the blue symmetric distribution is normal.
+
+#### Q-Q Plots
+
+Another visual method for checking normality is a Q-Q (Quantile-Quantile) Plot, or Q-Q Norm Plot. These plots compare your distribution to a theoretical distribution -- in this case, a normal distribution.
+
+In ggplot, use `geom_qq()` and `geom_qq_line()`:
+
+```{r}
+ggplot(distributions, aes(sample = value, fill = type)) + 
+  facet_grid(~type, scales = "free") + 
+  geom_qq() + 
+  geom_qq_line(color="red") +
+  theme(legend.position = "none")
+```
+
+The big picture takeaway here is that **you want your data to fall along the red qq line**. The closer it follows this line, the more normal your distribution.
+
+But what exactly are we plotting here? The x-axis is the expected quantile based on a normal distribution, and the y-axis is the observed quantile. 
+
+Places where the points deviate from the red line indicate non-normality. You can think of this as a comparison of how much of your data falls below a certain quantile (point on your x-axis of your density distribution) compared to what would be expected under a normal distribution.
+
+We can see that for the left-skewed QQ Norm plot, we've seen *less* of our data than expected around quantile -2. We've also seen less than expected by the time we get over to quantile 2.
+
+```{r}
+distributions %>% 
+  filter(type %in% c("left skewed", "symmetric")) %>% 
+  ggplot(aes(x = value, fill = type)) + 
+  geom_density(alpha = .5, bw = .05) + #bw smooths things out for better vis
+  theme_classic() + 
+  scale_x_continuous(breaks = NULL)
+```
+
+
+### Statistically
+
+#### Skew and Kurtosis
+
+You can also assess normality statistically.
+
+We've actually already learned how to do this using skewness and kurtosis. Here, we quickly look at both of these stats using our trusty `summarise()`. (You could also use `describe()`):
+
+```{r, meassage=FALSE}
+library(psych)
+distributions %>% 
+  group_by(type) %>% #be sure to group since we're in long format right now!
+  summarise(skew = skew(value),
+         kurtosis = kurtosi(value))
+```
+
+As a reminder, you want both skew and kurtosis to be close to 0.
+
+* Positive skew values indicates positive (right) skew, negative values indicate negative (left) skew.
+* Positive kurtosis indicates heavier tails/pointier peak (leptokurtic), negative values indicates lighter tails/flatter peak (platykurtic)
+
+#### Shapiro-Wilk Test
+
+Another way to statistically assess skew is with the Shapiro-Wilk test. We won't get into detail here, but this test gives you a p-value so you can test if your deviations from normality are statistically significant or not.
+
+```{r}
+shapiro.test(symmetric$value)
+shapiro.test(left_skewed$value)
+```
+
+Wait, what? This is telling us that our symmetric distribution is actually non-normal! The Shapiro-Wilk test may not be very reliable with large samples, because it gets more and more sensitive to small deviations. For example, if we use the same seed as above, but a smaller sample:
+
+```{r}
+set.seed(3)
+symmetric <- data.frame(sample = 1:100,
+                        value = rbeta(100, 10, 10),
+                        type = "symmetric")
+shapiro.test(symmetric$value)
+```
+
+Because of this, it's best practice to test normality several different ways.
+
+
+### Practice Problem: Sleep Data
+
+`sleep` is a built-in dataset in R. Test the normality of the variable `extra` using the methods we've learned so far. What do you conclude?
+
+```{r}
+head(sleep)
+
+# Your answer here
+```
+
+
+## Homogeneity of Variance
+
+### Visually
+
+We can visually check for homogeneity of variance using our trusty boxplots. If our plots show that the boxes are roughly comparable across groups, we have homogeneity of variance.
+
+Simulate some data frames:
+```{r}
+set.seed(1234)
+sample1<-rbind(data.frame(value=rnorm(20, mean = 2), group='a'), 
+               data.frame(value=rnorm(20, mean = 0), group='b'))
+sample2<-rbind(data.frame(value=rnorm(20, mean = 2), group='c'), 
+               data.frame(value=rnorm(20, mean = 0, sd = 2), group='d'))
+```
+
+Plot:
+```{r}
+ggplot(sample1, aes(x = group, y = value)) + geom_boxplot()
+```
+
+```{r}
+ggplot(sample2, aes(x = group, y = value)) + geom_boxplot()
+```
+
+It is important to note that visualizing variances offers clues rather than statistical validation of homogeneity (or heterogeneity). In order to obtain confirmation, we can carry out statistical tests.
+
+### Statistically
+
+#### F-Test (Two Groups)
+
+The most straightforward method to compare the variances of TWO populations or groups is to use an F-test. This test involves calculating the F-statistic by taking the **ratio of the variances of both groups**. 
+
+If the variances are similar, the resulting F-statistic should be close to 1, while different variances will produce an F-statistic different from 1. The degree of deviation from 1 will also affect the p-value, which can help determine whether or not to reject the assumption of equal variances. In R, you can perform an F-test using the `var.test()` function.
+
+```{r}
+var.test(value~group, data = sample1)
+var.test(value~group, data = sample2)
+```
+
+#### Bartlett's Test (Two or more groups)
+
+Bartlett's test is a statistical test used to determine whether the variances of multiple groups or samples are equal or not.
+
+The test works by comparing the variance within each group. If the variances are similar, the test statistic is small; if they are different, the test statistic is larger. The test statistic is then compared to a chi-squared distribution.
+
+In R, you can perform Bartlett's test using the `bartlett.test()` built-in function, which returns the test statistic and p-value.
+
+```{r}
+bartlett.test(value~group, data = sample1)
+bartlett.test(value~group, data = sample2)
+```
+
+Note that Bartlett's test does not perform well on non-normal data.

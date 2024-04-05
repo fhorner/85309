@@ -1,0 +1,278 @@
+---
+title: "One-Sample Statistical Tests"
+author: "Fiona"
+output: 
+  html_document:
+    theme: journal
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this tutorial, we'll cover one-sample tests--i.e., tests that assess the significance of a value from a single sample (e.g., a sample mean). If we only have one value, what are we comparing it to? Typically, you compare either to 0 or to a known population parameter (e.g., mean or expected frequency). 
+
+As usual, we'll need the tidyverse.
+```{r}
+library(tidyverse)
+```
+
+## Continuous variables
+
+When you are comparing a *continuous* variable to an expected value, you can conduct either a z-test (when you know the population standard deviation) or a t-test (when you don't know the population sd).
+
+## One-sample z-test
+
+Let's revisit the practice problem from class where we tested whether the IQs of babies who had received a stimulation intervention were higher than the expected population IQ.
+
+The mean IQ of the stimulated babies (N = 40) was 104. We tested significance at the .01 level, and used a directional hypothesis because we were only interested on whether the intervention *increased* IQ.
+
+Recall from the slides that the formula for a z-score is:
+
+$$ z = \frac{\bar{X} - \mu_{0}}{\frac{\sigma}{\sqrt{N}}} $$
+
+In class, we took this formula and did the following:
+```{r}
+xBar <- 104
+mu <- 100
+sd <- 15
+N <- 40
+
+zScore <- (xBar - mu)/(sd/sqrt(N))
+zScore
+```
+
+We then compared our z-score to our critical value to determine significance.
+
+To get the critical value, use `qnorm()`. (Note: qnorm stands for 'quantile normal'. We are getting a quantile under a normal distribution.)
+```{r}
+criticalZValue <- qnorm(.01, lower.tail = FALSE) #in class this was from the table
+print(criticalZValue)
+
+criticalZValue > zScore
+```
+
+Because our critical value was greater than our z-score, we failed to reject the null hypothesis.
+
+Notice the `lower.tail = FALSE` argument in `qnorm()`. We add this because we had a directional hypothesis. In other words, we were only interested in whether our z-score was in the *upper* critical region. The default value is `lower.tail = TRUE`.
+
+**Comprehension Check: How would we test a two-sided hypothesis?**
+
+If you want a p-value, rather than just a comparison of z-scores, you can use the `pnorm()` function (p-value for normal distribution):
+```{r}
+pnorm(zScore, lower.tail = FALSE)
+```
+
+We reach the same conclusion, because our p-value is greater than our alpha (.01).
+
+**Comprehension Check: What is the definition of a p-value?**
+
+We can speed this process along with the `z.test` function in the `BSDA` package. Note that this function requires actual observations rather than just the parameters that we worked with above. Let's simulate some baby data matching these parameters:
+```{r}
+set.seed(309)
+babyDat <- rnorm(n = 40, mean = 104, sd = 15)
+mean(babyDat)
+```
+
+Notice that our actual observed mean is a little different than specified, due to the random generation of these data (and for another reason we'll discuss below).
+
+You'll need to install `BSDA` before running this code:
+```{r}
+library(BSDA)
+z.test(x = babyDat, sigma.x = 15, mu = 100)
+```
+
+We can see a very similar z-score and conclusion compared to our manual calculation above. Again, these numbers are a little off because of how these data were randomly simulated. 
+
+## One-sample t-test
+
+In practice, we basically never know the population standard deviation. As such, it's much more common in research to conduct t-tests, which are appropriate when you have to *estimate* the population standard deviation using the sample standard deviation. 
+
+Recall that the formula for a t-score is:
+
+$$t = \frac{\bar{X} - \mu_{0}}{\frac{\hat\sigma}{\sqrt{N}}} $$
+
+**Comprehension checks: **
+
+* **What is the difference in shape between a normal (aka Gaussian) distribution and a t-distribution?**
+
+* **When we calculate probabilities under the t-distribution (for example, the critical region for significance testing), what additional parameter do we need to take into account?**
+
+As an example, let's say we are interested in stress levels among CMU students and want to see how CMU stress compares to stress among other college students. We sample 50 CMU students and ask them to rate their stress levels from 0 to 10. We know that, among college students, the mean level of stress is 5, but we don't know the population SD.
+
+We set our alpha level at .05.
+
+We find that the mean stress level among CMU students is about 6:
+```{r}
+#simulate the data
+set.seed(309)
+stressData <- rnorm(n = 50, mean = 6, sd = 3)
+
+mean(stressData)
+```
+
+Let's write a function to calculate the t-score based on the above formula:
+```{r}
+myTscore <- function(v, mu){
+  #we'll write this together
+  xBar = mean(v)
+  N = length(v)
+  sigmaHat = sd(v)
+  
+  t = (xBar- mu)/(sigmaHat/sqrt(N))
+  return(t)
+
+}
+```
+
+Uncomment to test your function:
+```{r}
+myTscore(stressData, 5)
+```
+
+**Comprehension Checks: **
+
+* **What does this value represent?**
+* **What value do we compare this t-score to?**
+
+The t-distribution has functions comparable to `qnorm()` and `pnorm()` that we used  above: `qt()` (quantile under t-distribution) and `pt()` (p under t-distribution).
+
+```{r}
+# We'll finish this together
+qt(.025, df = 49)
+pt(1.98, df =49, lower.tail = FALSE)
+```
+
+
+**Comprehension Checks: **
+
+* **What conclusion do you draw from this test?**
+* **If we were working with a z-distribution, what is the critical value when alpha is at .05?**
+
+Because t-tests are so ubiquitous, there is a function `t.test()` in the `stats` package that we can use to speed things up here. For single-sample tests like we are discussing today, you add a `mu` argument to indicate the population mean for comparison.
+
+Note that `stats` is one of the packages pre-loaded with R, so you typically don't need to install/load it. 
+
+```{r}
+t.test(stressData, mu = 5, alternative = "two.sided")
+```
+
+**Comprehension Check:**
+
+* **Why is there a discrepancy between the p-values returned by pt() versus t.test()?**
+* **What is the default value of mu in this function?**
+* **If we use this default value, what hypothesis are we essentially testing (in plain language)?**
+
+```{r}
+#test it out here
+```
+
+
+## $\chi^2$ Test
+
+As we learned in lecture, $\chi^2$ tests (pronounced "kye" squared) assess differences in observed probabilities with respect to some set of hypothesized probabilities.
+
+We'll use an example from class: testing if a die is fair or not. Our null hypothesis is that the die is fair, i.e., that each side has an equal probability. Our alternative is that these probabilities are not all equal. 
+
+**Comprehension check:**
+
+* **What does a $\chi^2$ distribution look like?**
+* **Where is the critical region?**
+
+
+### Brief interlude: Frequency Tables 
+
+Since this test hinges on comparing observed frequencies, we need to be able to count frequencies. The function `table()` helps with this by creating frequency tables:
+
+```{r}
+cat.var <- c("a", "a", "a", "b", "b", "c")
+myTable <- table(cat.var)
+myTable
+```
+
+Here, the 'a b c' indicates the category names, and the '3 2 1' shows the frequencies of each category. Note that tables work differently than data frames, but some functions work on both. For example, if you want to get the names of your table, you can still use the `names()` function that we learned previously:
+
+```{r}
+names(myTable)
+```
+
+However, you can't access the value (frequency) at 'column' a using $:
+```{r}
+#uncomment to see error
+#myTable$a
+```
+
+Instead, you have to use indexing:
+```{r}
+myTable[1]
+
+#or 
+
+myTable['a']
+```
+If you want just the numeric value (frequency), use double brackets:
+```{r}
+myTable[[1]]
+```
+
+If you want just the name, you have to get a bit more creative, and combine indexing with the `names()` function. For example, if we were trying to find which category occurs twice:
+```{r}
+#returns the name/value pair where the value is 2
+myTable[myTable == 2]
+
+#gets just the name of the pair
+names(myTable)[myTable == 2]
+```
+
+It may be helpful to think of these tables as named values rather than data frames. 
+
+### Back to $\chi^2$
+Let's simulate some data from our 6-sided die that we are testing. This code randomly samples a single observation from the input vector 20 times:
+
+```{r}
+set.seed(309)
+
+dieObs <- replicate(50, sample(c(1, 2, 3, 4, 5, 6), size = 1))
+table(dieObs)
+```
+
+We can use the built-in `chisq.test()` function to see if these observations follow the expected (equal) probabilities. 
+
+```{r}
+chiTest <- chisq.test(table(dieObs))
+chiTest
+```
+
+* **What do you conclude from this test result?**
+* **What type of error did we *almost* make here?**
+
+
+Note that we *can't* just plug the original vector in, we need to get the frequencies first:
+```{r}
+#this is wrong
+chisq.test(dieObs)
+```
+
+**Comprehension Check:**
+
+**What does the `p` argument in the `chisq.test` function represent?**
+**What is the default value for this argument?**
+
+Note that, similar to the z-test and t-test above, we can also manually access the critical value and p-value, using:
+
+```{r, eval=FALSE}
+#critical region
+qchisq(p = alpha, df = k-1, lower.tail = FALSE)
+
+#p-val:
+pchisq(q = X, df = k-1, lower.tail = FALSE)
+```
+
+Where k is your number of categories (not the sample size!), and X is your $X^2$ value. Notice that these functions follow the same naming conventions that we saw above (p or q + distribution name).
+
+
+
+

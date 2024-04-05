@@ -1,0 +1,215 @@
+---
+title: "Visualizations in R"
+author: "Fiona"
+date: "2024-01-19"
+output: 
+  html_document:
+    theme: journal
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+*Note: The content in this tutorial is based off of [Javier Rasero's](https://github.com/jrasero/cm-85309-2023) prior 309 course content. It also draws from [Data Explorations](https://coaxlab.github.io/Data-Explorations/intro.html) (85-432).*
+ 
+## ggplot2
+
+In our first tutorial, we downloaded a family of packages called **The Tidyverse**. In this tutorial, we'll dive into one of these packages, called ggplot2, which is used for visualizing data.
+
+
+Recall that, once you've downloaded a package, you have to load it to your current R session prior to use.
+```{r}
+library(tidyverse)
+```
+
+## Data
+
+We'll practice using a data set from the Synthetic Aperture Personality Assessment (SAPA) web-based personality assessment project. These data include self-reported scores on the SAT verbal, SAT quantitative, and ACT, as well as respondent age, gender, and education. A description of the data can be found [here](https://vincentarelbundock.github.io/Rdatasets/doc/psych/sat.act.html).
+
+```{r}
+#notice the new function! read_csv is also a tidyverse function
+satData <- read_csv("https://vincentarelbundock.github.io/Rdatasets/csv/psych/sat.act.csv")
+```
+Let's get to know the data a bit:
+```{r}
+dim(satData)
+str(satData)
+```
+
+#### Question 1: What do you notice from this output? What needs to be fixed?
+
+```{r}
+#we'll fix the problem here
+```
+
+
+```{r}
+head(satData)
+```
+
+
+## Basic Syntax
+
+The basic syntax for creating a plot in ggplot2 is:
+```{r, eval=FALSE}
+#example 1
+ggplot(data = DATA, mapping = aes(MAPPINGS)) + GEOM_FUNCTION()
+
+#or
+
+#example 2
+ggplot(data = DATA) + GEOM_FUNCTION(mapping = aes(MAPPINGS))
+```
+
+
+In a nutshell:
+
+* One begins a plot with the function `ggplot`, which creates a basic coordinate system
+* The first argument of `ggplot` is the dataset to use in the graph. (This is true of almost all tidyverse functions!)
+* The mapping argument defines how variables in your data set are *mapped* to visual properties. This is always paired with the function aes() ('aesthetics'). This is where you specify, for example, which variables should appear on your x and y axes. 
+* The graph can be then completed by adding one or more layers to `ggplot` using a geom function. Geoms are where you add the actual lines, points, bars, etc. to your plot. One of the things that makes ggplot so flexible is the ability to layer as many geoms as you want on a single plot. You can also have different geoms refer to different mappings by moving the aes() function into a given geom (example 2 above).
+
+A list of the geom functions available can be found https://ggplot2.tidyverse.org/reference/, but for now let's create a graph that plots ACT scores against SAT verbal:
+
+
+```{r}
+ggplot(data = satData, mapping = aes(x=ACT, y=SATV)) + geom_point()
+```
+
+This type of visualization with points of two continuous variable plotted against each other is called a **scatterplot**.
+
+
+## Aesthetic Mappings
+
+In **ggplot2**, each aesthetic is a mapping between a visual cue and a variable. Examples include:
+
+- Color (“outside” color)
+- Fill (“inside” color)
+- Shape (of points)
+- Alpha (Transparency)
+- Line type
+- Size
+
+Each type of geom accepts ONLY a subset of all aesthetics (You can always check the geom help pages to see what mappings each geom accepts).
+
+Let's say we want to color points differently for gender. We can do this very easily by passing this variable to the color argument in `aes`:
+
+Uncomment the below code and run the code chunk:
+```{r}
+#ggplot(data = satData, mapping = aes(x=ACT, y=SATV, color = gender)) + geom_point()
+```
+
+##### Question: Try reverting gender to a numeric variable (`as.numeric()`) and re-run the plot. How is the plot different? 
+
+Practice: Instead of mapping color to gender, map color to education.
+```{r}
+# write your answer here
+```
+
+You can map multiple aesthetics in a single plot. For example, we can make the points different sizes based on age. Set gender back to a factor (`as.factor()`), then uncomment and run the code below.
+```{r}
+#ggplot(data = satData, mapping = aes(x=ACT, y=SATV, color = gender, size = age)) + geom_point()
+```
+
+Practice: Change the plot above so that gender is mapped to `shape` instead of `color`.
+```{r}
+#write your answer here
+```
+
+
+### Aesthetic Mapping vs Assignment
+**Important**: Variables are mapped to aesthetics with the function `aes`. However, fixed visual cues can also be set to particular values, although this must be done OUTSIDE `aes`:
+
+```{r}
+# Here setting points to a fixed blue color and size 4
+ggplot(data = satData) + geom_point(mapping = aes(x=ACT, y=SATV), color='blue', size = 4)
+```
+
+## Some common geoms
+
+Above, we used `geom_point()` to add data points to our plot. But there are many other ways to visualize data. 
+
+
+### geom_smooth()
+Often we want to summarize a scatterplot like above with a trend line. This can be accomplished by adding a `geom_smooth()` layer. For example:
+```{r}
+ggplot(data = satData, mapping = aes(x=ACT, y=SATV)) + 
+  geom_point() +
+  geom_smooth(method = 'lm')
+```
+
+A few things to pay attention to here:
+
+* geom_smooth() was added onto our prior code, not embedded within it (new layer!)
+* Within each geom, you can set specific settings for that layer, and the options depend on the geom in question
+  * `method = 'lm'` indicates that we wanted a linear trend line (lm = linear model). What happens if you remove that argument?
+  * The gray area indicates the error for the fit line, and is set by `se = TRUE/FALSE`
+
+### geom_histogram()
+Histograms can show us distributions of continuous variables.
+```{r}
+ggplot(satData, aes(x = SATV)) + geom_histogram()
+```
+
+### geom_bar()
+We can make bar charts (categorical variables) with geom_bar():
+```{r}
+ggplot(satData, aes(x = as.factor(gender))) + geom_bar()
+```
+
+### geom_line()
+You can create line plots with geom_line(). This type of plot usually makes the most sense with time series data, where you are tracking some measurement over time. To illustrate, we'll use the `EuStockMarket` data set, which comes as part of the `datasets` package.
+
+The data doesn't have a time column, so we'll create one. We'll also select just 100 observations for clarity. It's ok if you don't understand this first chunk of code!
+```{r}
+# turn the data from matrix to data frame
+EuStockMarkets <- as.data.frame(EuStockMarkets)
+#create subset of full data, and add time variable
+market <- head(EuStockMarkets, n = 100) %>% 
+  mutate(day = seq(1:100))
+```
+
+
+We can now plot the DAX over time (100 days).
+```{r}
+marketPlot <- ggplot(data = market, aes(x = day)) +
+  geom_line(aes(y = DAX))
+
+marketPlot
+```
+
+If we wanted to simultaneously look at the other indices too, we can do so by adding additional geoms:
+```{r}
+marketPlot +
+  geom_line(aes(y = SMI), color = 'red') + 
+  geom_line(aes(y = CAC), color = 'purple') + 
+  geom_line(aes(y = FTSE), color = 'blue')
+```
+
+A few things to note: 
+
+* We saved the baseline plot (data and aes input) as an object `marketPlot`, and then added additional layers to this object.
+* This is a good example of when you may need to set aes() within geoms: for each layer, we chose a different variable to map to the y-axis.
+
+##### Bonus question: can you think of another way we could have created a similar plot?
+
+## Other formatting options
+
+We've only scratched the surface with ggplot! Here are some additional ways you can manipulate your data visualizations:
+
+* Labels
+  * There are multiple ways to change your axis labels. The most straightforward is to add `xlab('label')` or `ylab('label')` to your plot object.
+* [Themes](https://ggplot2.tidyverse.org/reference/ggtheme.html)
+  * Pre-made themes make it easy to change the overall appearance of your plot.
+  * Just add `theme_<theme_name>` to your plot object.
+* [Scales](http://www.sthda.com/english/wiki/ggplot2-axis-scales-and-transformations)
+  * Scale functions follow the format `scale_<aesthetic>_<type>` and allow you to manipulate things like scale or axis breaks, plot legends, labels, and color palettes.
+    * These have a ton of functionality -- but also a lot of variability depending on what kind of plot your are creating.
+* [Facets](https://ggplot2.tidyverse.org/reference/facet_grid.html)
+  * Facets allow you to create multiple plots at once, for example when you want to compare two subpopulations of your data.
+  
+To explore more with ggplot, check out the **[ggplot2 Cheat Sheet](https://rstudio.github.io/cheatsheets/html/data-visualization.html)**

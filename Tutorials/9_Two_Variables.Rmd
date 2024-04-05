@@ -1,0 +1,299 @@
+---
+title: "Statistical Tests for Two Variables"
+author: "Fiona"
+output: 
+  html_document:
+    theme: journal
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+---
+
+This tutorial is based on [Javier Rasero's](https://github.com/jrasero/cm-85309-2023) prior 309 course content.
+
+---
+
+
+In this tutorial, we'll cover statistical tests with two or more variables. Many of the R functions that handle these tests use *formulas* as inputs, rather than just a series of arguments. We'll start by looking at how these formulas work.
+
+## Formulas
+
+A formula object is just a variable, but it's a special type of variable that specifies a **relationship** between other variables. A formula is specified using the "tilde operator": ~. A very simple example of a formula is shown below:
+
+```{r}
+formula1 <- outcome ~ predictor1
+formula1
+```
+
+Normally, the variable on the left-hand side is called the "dependent variable", while the variables on the right-hand side are called the "independent variables" and are joined by plus signs: +
+
+
+```{r}
+formula2 <- outcome ~ predictor1 + predictor2 # more than one variable on the right
+formula2
+```
+
+We could read or describe this formula as "outcome predicted by predictor1 and predictor2", or "outcome regressed on predictor1 and predictor2".
+
+The names for these variables change depending on the context. You might have already seen independent variables appear as "predictor (variable)", "control variable", "feature", etc. Similarly, you might come across dependent variables as "response variable", "outcome variable" or "label". In mathematical notation, our outcome is conventionally Y, and our predictors are conventionally X.
+
+You can create a formula from another R object, like a string, using `as.formula()`:
+```{r}
+formula3<- "y ~ x"
+formula3
+class(formula3)
+
+formula3<-as.formula("y ~ x")
+formula3
+class(formula3)
+```
+
+
+You can also use functions within formulas to transform variables or perform other operations. For example, if I had a gender variable, I could convert it to a factor within my formula:
+```{r}
+formula4 <- y ~ as.factor(gender)
+```
+
+Note that even though I don't currently have an object called gender in my environment, this code works. That's because we haven't actually called this anywhere, we just saved the formula to an object.
+
+Next, we'll see how we use the formulas in built-in functions.
+
+## Two-sample t-tests
+
+### Welch's T-Test
+
+A Welch's T-test in R is very similar to the one-sample t-test we learned previously -- it even uses the same function: `t.test()`.
+
+**Comprehension check:**
+
+**1) What is the difference between a Welch's t-test and a one-sample t-test?**
+
+**2) What is the difference between a Welch's t-test and Student's t-test?**
+
+#### Data and plotting
+
+Let's generate some random data to illustrate:
+```{r, message=FALSE}
+library(tidyverse)
+set.seed(1234)
+
+# Generate random data 
+welch.data.1<-rbind(data.frame(groupA=rnorm(25, mean = 10, sd = 2),
+                               groupB=rnorm(25, mean = 13, sd = 3)))
+```
+
+This gives us two columns, one for each group:
+```{r}
+head(welch.data.1)
+```
+
+Let's practice plotting.
+
+Which type of plot helps us visualize the differences in a continuous variable across levels of a categorical variable? Do we need to change anything about our data before plotting?
+
+```{r}
+#We'll plot this together
+
+```
+
+
+
+### Running the test
+
+When the data are in two columns like they are for `welch.data.1`, it's easy to specify the t.test inputs using x and y arguments.
+
+```{r}
+t.test(x = welch.data.1$groupA, y = welch.data.1$groupB)
+```
+
+**Comprehension check: How does this syntax differ from our one-sample t-tests?**
+
+But, we can also specify this same test using a *formula*.
+
+Pull up the documentation for t.test. Where do you see information on the formula?
+```{r}
+?t.test
+```
+
+
+Using the formula, our t-test can be specified as: (uncomment and run)
+```{r}
+#t.test(values ~ group, data = welch.data.1.long)
+```
+
+I typically "read" this type of formula as "value by group", i.e., dividing the 'value' variable by group and comparing them.
+
+Two very important things to notice here!
+
+1) We had to use the **long** version of our data for this to work.
+2) We had to additionally specify our **data frame**, because formulas do **not** include this information.
+
+**Comprehension checks: **
+
+**1) Could 'value' have been a categorical variable in this test?**
+
+**2) Could 'group' have been a continuous variable in this test?**
+
+**3) What conclusions do we draw from this test?**
+
+
+### Student's T-Test
+
+Running a Student's t-test is very similar to Welch's, but you have to set `var.equal = TRUE`.
+
+#### Data and Plotting
+Let's simulate our data:
+
+```{r}
+set.seed(1234)
+
+students.data<-rbind(data.frame(groupA=rnorm(25, mean = 10, sd = 2),
+                               groupB=rnorm(25, mean = 13, sd = 2)))
+
+head(students.data)
+```
+
+We'll again transform it so we can run the test both ways (arguments and formula).
+```{r}
+students.data.long <- pivot_longer(data = students.data, cols = c(groupA, groupB),
+                                   names_to = "group", values_to = "values")
+
+head(students.data.long)
+```
+
+Practice plotting these data on your own. Do you notice anything different?
+```{r}
+#practice plotting here
+```
+
+#### Running the test
+
+Using x and y arguments:
+```{r}
+t.test(x = students.data$groupA, y = students.data$groupB, 
+       #this is the only difference:
+       var.equal = TRUE)
+```
+
+Using a formula (and the long data format):
+```{r}
+t.test(values ~ group, data = students.data.long, var.equal = TRUE)
+```
+
+### Paired-sample t-test
+
+A paired sample t-test is an extension of these concepts. Basically, it is a one-sample t-test conducted on *difference scores* rather than on a raw variable.
+
+This test is appropriate when your data are paired in some way -- i.e., a value in one group directly corresponds to a value in the other group. For example, you might have pre/post test scores *for each individual*. Each person would have a value in each 'group'. You would take the difference in each person's score, and then compare this difference score to **0**.
+
+Note that your data must be organized so that your observations across groups align. You don't want to subtract Person A's post-test score from Person B's pre-test score. 
+
+For example:
+```{r}
+set.seed(1234)
+
+paired.data<-rbind(data.frame(id = c(seq(1:25)),
+                              preTest=rnorm(25, mean = 80, sd = 5),
+                              postTest=rnorm(25, mean = 83, sd = 5)))
+
+head(paired.data)
+```
+
+
+You run a paired test by adding the `paired = TRUE` argument:
+
+```{r}
+t.test(paired.data$preTest, paired.data$postTest, paired = TRUE)
+```
+
+**Important**: Remember that the denominator of your test statistic for paired tests uses the variance of the *difference score* rather than the variance of the full variables. So it doesn't matter if your test score variances are equal or not.
+
+### ANOVA
+
+ANOVAs are like t-tests, but are appropriate when you are comparing across more than two groups. 
+
+#### Data and plotting
+
+We use the `aov()` function in R to run ANOVAs. Note that, because we have more than two groups, you **must use formulas** when running this test. That means your data **must** be in long format. 
+
+```{r}
+set.seed(1234)
+# These data are simulated in long format
+# so we don't have to transform them
+anova.data<-rbind(data.frame(value=rnorm(25, mean = 10, sd = 2), group='a'),
+                  data.frame(value=rnorm(25, mean = 13, sd = 2), group='b'), 
+                  data.frame(value=rnorm(25, mean = 11, sd = 3), group='c'))
+
+head(anova.data)
+```
+
+We plot this the same way. R knows what to do!
+```{r}
+ggplot(anova.data, aes(x = group, y = value)) + geom_boxplot()
+```
+
+#### Running the test
+
+Our syntax is actually very similar to our t-test formulas above. This is because `group` is still a single column -- it just has more than two levels.
+
+
+```{r}
+aov1 <- aov(value ~ group, data = anova.data)
+aov1
+```
+
+Note that this output on it's own doesn't give us all the information we likely need. We need to enter the model object into the `summary()` function:
+
+
+```{r}
+summary(aov1)
+```
+
+**Comprehension Checks:**
+
+**1) What are our null and alternative hypotheses for ANOVA?**
+
+**2) What values in our output are used to get our F score?**
+
+**3) What can we conclude from this output?**
+
+
+#### Post-Hoc Analyses
+
+To fully interpret a significant ANOVA, you need to run post hoc tests -- basically, additional t-tests to identify which groups are different from each other.
+
+So we just have to do three t-tests anyways? What is the point of the ANOVA?
+
+Running multiple tests **inflates our chance of making a type I error**. We'll talk more about this later in the course, but for now just know that your type 1 error rate **compounds** when running multiple tests. This means it can quickly reach levels far above the .05 rate that we typically want. (For example, running 4 tests with alpha = .05 gives you a family-wise error rate of almost .20. This means you'll falsely reject the null 1 in 5 times!)
+
+ANOVA is an *omnibus* test that tells us if we should run those t-tests in the first place. It's also good to specify ahead of time which groups you are actually interested in comparing -- it's often not all of them -- and just running post hoc t-tests on those specified groups. 
+
+When you do want to compare all of the groups in your ANOVA, it's good practice to do what's called a type I error correction. There are many types corrections, but we'll focus on one called Bonferroni.
+
+Bonferroni corrections work by dividing your significance threshold (alpha) by the number of comparisons you are performing, making it **more difficult** to reject the null. 
+
+In our example here with 3 groups, our new alpha would be:
+```{r}
+.05/3
+```
+
+We could run the t-tests independently and manually compare to this value, or we could use R's built-in `pairwise.t.test` function:
+
+```{r}
+pairwise.t.test(anova.data$value, #your outcome
+                anova.data$group, #your grouping variable
+                p.adjust.method = 'bonferroni') #your correction method
+```
+
+These p-values are already adjusted for, so we still compare them to the .05 alpha threshold.
+
+**Comprehension check: What conclusions do you draw from this output? **
+
+

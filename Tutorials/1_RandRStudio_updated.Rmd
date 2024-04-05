@@ -1,0 +1,152 @@
+---
+title: "R and RStudio"
+author: "Fiona Horner"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: journal
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd('/Users/fiona/Documents/Classes/85309-Example/Tutorials')
+```
+## A Tour of RStudio
+
+This tutorial will cover initial set up for 85-309. This includes downloading R and RStudio, orienting to these new tools, downloading some R packages, and setting up your computer system.
+
+## Installing R and RStudio
+
+R is a free and open source programming language that is widely used for statistics in scientific research. To download the current version of R, go to http://lib.stat.cmu.edu/R/CRAN/, and select the link for your operating system. 
+
+Once R is downloaded, go to [Posit](https://posit.co/download/rstudio-desktop/) to download RStudio. RStudio is an *integrated development environment* (IDE) that has many helpful tools when working with R. 
+
+If you run into problems, check out these resources for troubleshooting:
+
+* [Tutorial on downloading R and RStudio](https://www.datacamp.com/tutorial/installing-R-windows-mac-ubuntu)
+* [CRAN FAQs](http://lib.stat.cmu.edu/R/CRAN/faqs.html)
+
+Once you have both R and RStudio downloaded, open RStudio. Then, open the file for this tutorial that ends in **.Rmd**. This is called an **RMarkdown** file.
+
+**NOTE:** When you open your first .Rmd file, you may get an alert from RStudio saying you need to download a bunch of packages. That's ok -- go ahead and click yes to download. We'll talk more about packages in class.
+
+## Orientation to RStudio
+
+We'll talk about all of this in class. You can take notes below once you've opened this document in RMarkdown!
+
+### Different Panes
+
+#### Environment Pane
+
+* Top right: where objects in your global environment will appear (variables, functions, data sets, etc.)
+
+#### Files/Packages Pane
+
+* Bottom right: Where you can navigate through your file system (including opening documents). Also where you can point-and-click to manipulate packages, and where knit html files will appear.
+
+#### Console Pane
+
+* Bottom left: Think of this an R scratchpad. You can code here, but nothing will be saved.
+
+#### Source Pane
+
+* Top left: Where your source code file opens, i.e., where most of your editing will occur.
+
+### File Systems
+
+Do not save everything on your desktop or downloads folder!!!!!!!!! Please!!!!! I am begging you!!!!!
+
+#### The importance of file organization with R
+
+1) You need to know where your files are. Over the years I've seen students lose files they were working on and have to redo assignments. I've seen students turn in the wrong version of something because they lost the file, redownloaded and completed it, and then turned in the wrong file. A basic folder system can help you organize where the important things are for each class.
+
+2) With R, you need to know exactly which folder/directory you're working from because you have to specify this for each new R session. Failure to do this will cause issues like not being able to load data sets, or writing files from R (like plots or output) and not knowing where they're being saved on your computer. Save yourself some heartache!
+
+#### What is a working directory?
+
+* The directory you point R to for a given session. This is where it will look for and write files. For this class, it should be your 85309 folder.
+
+#### Setting and checking your working directory
+
+Best practice: via code, so you can reproduce it in the future:
+
+```{r, eval=FALSE}
+setwd('your/file/path/here')
+```
+
+Note that this should point to a *folder*, not a document.
+
+Another option: Session --> set working directory --> ...
+This is user friendly, but not reproducible for your future self. 
+
+
+### RMarkdown
+#### YAML Header
+
+Code at top of document, indicating document-level settings, title, author, date, etc.
+
+#### Prose versus code chunks
+
+RMarkdown files are great for science communication because they combine prose (i.e., text like this) with code *and* the code output. So you can do things like load a dataset, describe the dataset with both statistics and language, run analyses on the data, and interpret the analyses, all in one place. 
+
+#### Creating formatted documents
+
+Click "Knit" on top of source code pane. Note that you can knit to different file formats. For this document, you can tell it will knit to .html because it says so in the YAML header. 
+
+A few things:
+
+* When you press knit, R spins up a *brand new environment*. That is, you can't rely on anything in the global environment when you are knitting a document. Any objects referenced must be explicitly loaded or defined in the .Rmd file.
+
+* .Rmd files are knit top to bottom -- so you can't call a variable above where you define it on your page. 
+
+#### In-text code
+
+```{r}
+variable <- 'the answer'
+```
+
+And call `r variable` in text. Compare how this line looks in the .Rmd version versus the .html version.
+
+#### Learn More:
+[R Markdown Cookbook](https://bookdown.org/yihui/rmarkdown-cookbook/) by Yihui Xie, Christophe Dervieux, and Emily Riederer. 
+
+### Packages
+#### Downloading/installing versus attaching/loading packages
+
+To install a package, use the `install.packages()` function. Go ahead and do this with `tidyverse`, which is a collection of packages that we'll be using this semester. (Note that it's actually best practice to run this in your console, rather than in a document like this, because you only have to do it once.) This is commented out so that it doesn't redownload these packages every time you knit the document.
+
+```{r}
+#install.packages('tidyverse')
+```
+
+Once you have done this step, you still need to **load** the package whenever you want to use it. Do this like so:
+
+```{r}
+library(tidyverse)
+```
+
+Note that you need the quotes around the package when you first download it, but not when you load it.
+
+To recap: 
+
+* `install.packages()` has to happen just once (this is downloading the files for this packages from the internet)
+* `library()` has to happen for each new R session in which you are using the package. It's a good idea to include this code at the top of a file, so it's clear what packages you're using.
+
+#### Two ways to manage packages
+
+1) Using the code above. This is best practice.
+2) Using the 'Packages' pane in the bottom right of R Studio. This is ok as you're getting used to R and R Studio, but it is not reproducible.
+
+## Summary of Best Practices
+
+* Create a clear file system on your computer so you always know where to tell R to look
+* Set your working directory at the start of each R session
+* Include code to set your working directory and load the necessary packages at the top of a document
+* Don't rely on objects saved to the global environment. Clear your global environment periodically to make sure your source RMD file creates or loads any data, functions, or variables that are used.
+
+
+
+

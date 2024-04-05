@@ -1,0 +1,384 @@
+---
+title: "Sampling and the Central Limit Theorem"
+author: "Fiona"
+output: 
+  html_document:
+    theme: journal
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+*Note: Some content in this tutorial draws from [Javier Rasero's](https://github.com/jrasero/cm-85309-2023) prior 309 course content.*
+
+
+Load our favorite SAT data and our favorite R package.
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+sat.dat<-read.csv("https://vincentarelbundock.github.io/Rdatasets/csv/psych/sat.act.csv")
+
+sat.dat$gender<-as.factor(sat.dat$gender)
+sat.dat$education<-as.factor(sat.dat$education)
+```
+
+We'll focus on the SATV variable for this tutorial, which has this distribution:
+```{r}
+ggplot(sat.dat, aes(x = SATV)) + 
+  geom_histogram(bins = 20) +
+  theme_classic()
+```
+
+How would you describe this distribution?
+
+Let's get the mean of this distribution:
+```{r}
+muSATV <- mean(sat.dat$SATV)
+muSATV
+```
+
+
+## Sampling
+
+This class largely focuses on **frequentist statistics**, which is based on the idea that the frequency with which something has happened gives us information about the probability of that event. (See pages 25 - 27 in your textbook for a longer explanation of this.) Intuitively, if something happens frequently, it is more probable than something that happens infrequently.
+
+How do we know how frequently something happens? In an ideal world, we would have access to the *population* of interest -- i.e., the entire group we want to draw conclusions about. In reality, we usually only have access to a subset -- a *sample* -- of these data. 
+
+In the lecture, we talked about how *randomly* sampling from a population reduces bias.
+
+R has a built-in function called `sample()` that allows you to get a random sample from a given vector of values. For example, if we wanted to randomly select 100 observations from the SAT dataset, we could this like so:
+```{r}
+sample(x = sat.dat$ACT, size = 10)
+```
+
+Notice that x is a single column in our data frame, not the data frame itself. What happens when you try inputting the entire data frame?
+
+The tidyverse function `slice_sample()` allows you to sample rows from a data frame:
+```{r}
+slice_sample(sat.dat, #data frame first, just like always!
+             n = 10,
+             replace = TRUE) 
+```
+
+Equivalently:
+```{r}
+sat.dat %>% slice_sample(n = 10, replace = TRUE)
+```
+
+**Comprehension check: Why did these two equivalent functions give us different outputs?**
+
+## Law of Large Numbers
+
+Let's write a function that takes in our `sat.dat` data frame, selects a random sample of size `n` from the SATV variable, and then calculates the mean of that sample. 
+
+You'll need to uncomment later code after we create this function.
+
+```{r}
+getSampleMean <- function(n) {
+  #we'll write this together
+
+}
+```
+
+We can then get sample means based on different sample sizes: (uncomment after writing the function above.)
+```{r}
+# getSampleMean(10)
+# getSampleMean(20)
+# getSampleMean(30)
+```
+
+What happens to these means as the `n` gets larger? 
+
+```{r}
+# set.seed(85309)
+# increasingNs_M <- data.frame(sample_ns = seq(from = 10, to = 700, by = 10),
+#                              means = NA)
+# 
+# #we'll talk through this code together
+# for(i in seq(nrow(increasingNs_M))){
+#   ni = increasingNs_M$sample_ns[i]
+#   increasingNs_M$means[i] = getSampleMean(ni)
+# }
+```
+
+Let's plot these means:
+```{r}
+# ggplot(increasingNs_M, aes(x = sample_ns, y = means)) +
+#   geom_point() +
+#   xlab("Sample Size") + ylab("SATV Sample Mean") +
+#   theme_classic()
+```
+
+What do you see?
+```{r}
+?geom_hline()
+```
+
+**Comprehension Checks: **
+
+* **What is our population in this example?**
+* **What is the law of large numbers?**
+
+
+## Sampling Distributions and the Central Limit Theorem
+
+Recap: 
+
+* What is a sampling distribution? 
+* What do we need to do with our function above to create a sampling distribution? 
+
+```{r}
+#set.seed(85309)
+# sample_n10 <- data.frame(
+#                     #this line makes a variable that just counts 1-100:
+#                     sample = 1:100, 
+#                     #this line repeats our above function once for each row
+#                     x_bar = replicate(100, getSampleMean(n = 10)))
+# 
+# #plot
+# ggplot(sample_n10, aes(x = x_bar)) + 
+#   geom_histogram(bins = 20) + 
+#   theme_classic()
+```
+
+**Comprehension checks: **
+
+* **What does n = 10 refer to here?**
+* **How does this distribution compare to the original SATV distribution?**
+* **What happens to this distribution as you increase N?**
+* **What happens to this distribution as you decrease/increase the number of samples?**
+
+
+Our `getSampleMean()` function gives us a single mean for a sample of a given size. Let's use this function inside another function so that we can get the *mean of the sampling distribution*. In this case, this is the *mean of the sample means*.
+
+We'll talk through this together: 
+```{r}
+# varySamplesAndN_M <- function(n, samples) {
+#   #create a data frame with nrows = to samples
+#   data.frame(sample = 1:samples,
+#              #for "samples" times, getSampleMean
+#              sampleMeans = replicate(samples, getSampleMean(n))) %>% 
+#     summarise(distributionMean = mean(sampleMeans)) %>% 
+#     #this line pulls the numeric value, because summarise returns a dataframe
+#     pull()
+#   }
+```
+
+This distills all of our samples into a single number: The mean of the sampling distribution.
+```{r}
+#varySamplesAndN_M(n = 10, samples = 100)
+```
+
+
+We can use this function to see how the mean of the sampling distribution changes when we change `n` OR the number of samples. 
+
+Let's start by changing N.
+```{r}
+# set.seed(85309)
+# 
+# #we can test a range of values with seq()
+# sampleNs <- c(seq(from = 5, to = 700, by = 20))
+# 
+# #create a df to store our outputs. distMean is empty at this point
+# resultsMean <- data.frame(N = sampleNs,
+#                           distMean = NA)
+# 
+# #Use a for loop to test each value of N in our sample_range
+# #number of samples is constant at 100
+# for(i in seq(nrow(resultsMean))){
+#   ni <- resultsMean$N[i]
+#   resultsMean$distMean[i] <- varySamplesAndN_M(n = ni, samples = 100)
+# }
+```
+
+Let's view the first few rows:
+```{r}
+#head(resultsMean)
+```
+
+```{r}
+# ggplot(resultsMean, aes(x = N, y = distMean)) + 
+#   geom_point() +
+#   theme_classic()
+```
+
+To recap, we just did the following:
+
+* We took a sample of size N and calculated the mean
+* We did this 100 times for a given value of N -- i.e., created a sampling distribution of means
+* We took the overall mean of this distribution -- this is a mean of means
+* We then repeated this process for a bunch of different sample sizes (Ns)
+* Finally, we plotted these distribution means
+
+**Comprehension Checks:**
+* **What value do these distribution means converge on?**
+* **How does this plot differ from the one above, where we were plotting sample means?**
+
+#### Practice problem (do on your own!)
+Adjust the code above so that instead of changing N, you change the number of samples. Keep N constant at 20. Plot your results. What do you notice?
+
+```{r}
+#write your answer here
+```
+
+
+## Estimating the population standard deviation
+
+Ok so samples from a population can give us some insight into the mean of the population. What can these samples tell us about the *variability* of the population? 
+
+To start, we'll modify our getSampleMean() function above so that it takes the standard deviation of the sample, instead of the mean. We're going to calculate the SD in two different ways. First, we'll use the function we wrote in tutorial 4. Then we'll use R's built-in `sd` function.
+```{r}
+#We wrote this function together in tutorial 4
+#The only difference is that here we take the square root
+#of the variance to get the standard deviation
+getSD <- function(v){
+  N <- length(v)
+  meanV <- mean(v)
+  vDiffs <- v - meanV
+  vDiffsSq <- vDiffs ** 2
+  vSums <- sum(vDiffsSq)
+  sd <- sqrt(vSums/N)
+  return(sd)
+}
+
+#We modify our getSampleMean() function to instead
+#get the sample SD -- two ways
+getSampleSD_N <- function(n) {
+  sat.dat$SATV %>% 
+    sample(size = n, replace = TRUE) %>% 
+    getSD()
+}
+
+getSampleSD_N1 <- function(n){
+  sat.dat$SATV %>% 
+    sample(size = n, replace = TRUE) %>% 
+    sd()
+}
+```
+
+
+We can then modify our `varySamplesAndN` function so that it can give us both versions of the SD:
+```{r}
+varySamplesAndN_SD <- function(n, samples) {
+  data.frame(sample = 1:samples,
+             sampleSD_N = replicate(samples, getSampleSD_N(n)),
+             sampleSD_N1 = replicate(samples, getSampleSD_N1(n))) %>%
+    #here we take the MEAN of the many sample SDs
+    summarise(meanSD_N = mean(sampleSD_N),
+              meanSD_N1 = mean(sampleSD_N1))
+  }
+```
+
+**Comprehension check: What is the difference between the `getSampleSD` functions and `varySamplesAndN_SD`?**
+
+Let's see how our sample SD changes as n increases.
+```{r}
+set.seed(2)
+
+increasingNs_SD <- data.frame(sample_ns = seq(from = 2, to = 20),
+                              averageSD_N = NA, #our own sd function output
+                              averageSD_N1 = NA) #the built-in sd function 
+
+#we'll talk through this code together
+for(i in seq(nrow(increasingNs_SD))){
+  ni <- increasingNs_SD$sample_ns[i]
+  currentSim <- varySamplesAndN_SD(n = ni, samples = 1000)
+  increasingNs_SD$averageSD_N[i] <- currentSim$meanSD_N
+  increasingNs_SD$averageSD_N1[i] <- currentSim$meanSD_N1
+}
+```
+
+We can visualize the output:
+
+```{r}
+ggplot(increasingNs_SD, aes(x = sample_ns)) +
+  geom_point(aes(y = averageSD_N), color = 'blue') + 
+  geom_point(aes(y = averageSD_N1), color = 'red') +
+  geom_line(aes(y = averageSD_N), color = 'blue') + 
+  geom_line(aes(y = averageSD_N1), color = 'red') +
+  xlab("Sample Size") + ylab("Average SATV SD Across 1000 samples") +
+  geom_hline(aes(yintercept = sd(sat.dat$SATV))) +
+  theme_classic() +
+  scale_x_continuous(breaks=increasingNs_SD$sample_ns) + 
+  annotate("text", label = "N-1", x=3, y=105, size=10,color="red") + 
+  annotate("text", label = "N", x=5, y=85, size=10,color="blue")
+```
+
+Here, we can see that our sample standard deviations are consistently lower than our population standard deviation. This is especially true when N is small! We correct for this by using N-1 instead of N in the denominator of the equation for standard deviation.
+
+$$  s = \sqrt { {\frac{1}{N} \sum_{i = 1}^N(X_{i} -\bar X)^2}}$$
+$$  \sigma = \sqrt { {\frac{1}{N-1} \sum_{i = 1}^N(X_{i} -\bar X)^2}}$$
+**Comprehension Check: What does each point represent on the above plot?**
+
+## Standard Error
+
+Above we saw that the larger the sample size, the closer the mean of the sampling distribution gets to the population mean. We also saw that as our sample size increases, the sample standard deviation (s) gets closer to the population standard deviation ($\sigma$).
+
+What happens to the variability of our **sampling distribution** when we adjust N? Here, we are talking about the standard error of our (mean) sampling distribution, which is known as the **standard error**.
+
+(Uncomment this and run:)
+
+```{r}
+# varySamplesAndN_SE <- function(n, samples) {
+#   data.frame(sample = 1:samples,
+#              sampleMeans = replicate(samples, getSampleMean(n))) %>% 
+#     #this is the only line that changes:
+#     summarise(standardError = sd(sampleMeans)) %>% 
+#     pull()
+#   }
+```
+
+Again, this is the variability of the sampling distribution *means*, so we've got an extra layer of abstraction to remember.
+
+Let's visualize what happens to the SE as the sample size gets larger:
+
+```{r}
+# #selecting a range of values for N
+# sampleNs <- c(seq(from = 5, to = 700, by = 10))
+# 
+# 
+# #create a data frame to store our outputs. SE is empty at this point
+# resultsSE <- data.frame(N = sampleNs,
+#                         standardError = NA)
+# 
+# #Use a for loop to test each value of N in our sampleNs
+# #number of samples is constant at 100
+# for(i in seq(nrow(resultsSE))){
+#   ni <- resultsSE$N[i]
+#   resultsSE$standardError[i] <- varySamplesAndN_SE(n = ni, samples = 100)
+# }
+```
+
+Plot the results:
+```{r}
+# ggplot(resultsSE, aes(x = N, y = standardError)) + 
+#   geom_point() +
+#   geom_line() +
+#   theme_classic()
+```
+
+To recap, we just did the following:
+
+* We took a sample of size N and calculated the mean
+* We did this 100 times for a given value of N -- i.e., created a sampling distribution of means
+* We took the overall *standard deviation* of this distribution of means -- this is the **standard error**
+* We then repeated this process for a bunch of different sample sizes (Ns)
+* Finally, we plotted these standard errors
+
+**Comprehension checks:** 
+
+* **How do these standard errors (standard deviations of the sampling distribution) compare to the standard deviation of the population?**
+
+```{r}
+sigmaSATV <- sd(sat.dat$SATV)
+sigmaSATV
+```
+
+* **How does this relate to our first sampling distribution we plotted above?**
+
+
+ 
