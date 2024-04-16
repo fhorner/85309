@@ -1,0 +1,267 @@
+---
+title: "Model Selection"
+author: "Fiona"
+output: 
+  html_document:
+    theme: journal
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+---
+
+This tutorial draws from [Javier Rasero's](https://github.com/jrasero/cm-85309-2023) prior 309 course content.
+
+---
+
+For this tutorial, we will consider Ebay auctions of a video game called Mario Kart for the Nintendo Wii, which contains the total price of an auction (highest bid plus + the shipping cost) and certain characteristics of the auction that may affect the final price.
+
+
+```{r, message=FALSE}
+library(tidyverse)
+dat.mariokart<-read.csv("https://raw.githubusercontent.com/jrasero/cm-85309-2023/main/datasets/mariokart_ebay.csv")
+dat.mariokart$cond<-as.factor(dat.mariokart$cond)
+dat.mariokart$cond<-relevel(dat.mariokart$cond, ref = "used")
+
+head(dat.mariokart)
+```
+
+The codebook for this dataset is the following:
+
+* `duration`: Auction length, in days.
+* `n_bids`: Number of bids.
+* `cond`: Game condition, either new or used.
+* `total_pr`: Total price (auction price plus the shipping price).
+* `seller_rate`: The seller's rating on Ebay. This is the number of positive ratings minus the number of negative ratings for the seller.
+* `stock_photo`: Whether the auction feature photo was a stock photo or not.
+* `wheels`: Number of Wii wheels included in the auction. These are steering wheel attachments to make it seem as though you are actually driving in the game. When used with the controller, turning the wheel actually causes the character on screen to turn.
+
+How would we write the equation for a regression model that predicts the total price based on whether the seller used a stock photo or not?
+
+*We'll practice this together*
+
+Now using lm, fit a regression model for this equation. Save this to an object named "reg.model.1".
+
+```{r}
+#we'll do this together
+
+```
+
+
+**Comprehension check: Is the slope in "reg.model.1" significant at 𝛼=0.05? How can this be interpreted?**
+
+Now, fit two more regression models, one that predicts the `total_pr` based on using a stock photo of the game (`stock_photo`) and the number of wheels included (`wheels`), and another one that predicts the total price based on using a stock photo game and game condition (`cond`). Save these new objects to variables named "reg.model.2" and "reg.model.3" respectively.
+
+```{r}
+#We'll do this together
+
+```
+
+**Comprehension check: Is the slope for "stock_photo" in both models still significant at 𝛼= 0.05? What do you think happened here?**
+
+This is an example of **confounding** variables. Confounding happens when two variables (here, stock photo and price) are both caused by a third variable (condition). When these two variables are included in the same regression, they look like they are significantly related (sometimes called a *spurious* association). But when the confounding variable is added to the model, the relationship goes away. 
+
+We can directly test the associations between these variables:
+
+```{r}
+# Association between "stock_photo" and "cond"
+chisq.test(table(dat.mariokart$stock_photo, dat.mariokart$cond))
+
+# Association between "total_pr" and "cond"
+t.test(total_pr ~ cond, data = dat.mariokart)
+```
+
+We don't see the same relationship with wheels:
+
+```{r}
+# Association between "stock_photo" and "wheels"
+t.test(wheels~ stock_photo, data = dat.mariokart)
+
+# Association between "total_pr" and "wheels"
+cor.test(~total_pr + wheels, data = dat.mariokart)
+```
+
+#### An important note: Association vs Causation
+
+As described above, confounding assumes *causal* links between the confounding variable (condition) and the independent (stock photo) and dependent (price) variables. 
+
+**Do the multiple linear regression models directly assess causation? Do any of the statistical tests we've learned in this class do so?**
+
+The answer is no! At the statistical level that we've been operating on, we're just testing associations between variables -- we can't know if an association detected in a test is causal without a lot more information. This is where understanding of *research methods* is very important.
+
+You can still see things like the example above--relationships between variables disappearing when additional variables are added to the model--when the links are non-causal. This is typically called **collinearity**, and implies that two independent variables overlap in their association with the dependent variable. 
+
+So, just because an effect goes away in a model when another variable is added doesn't necessarily mean that the underlying links are causal.
+
+The power of multiple linear regression allows us to assess the relationship between an independent variable and the dependent variable while *controlling* for the potential influence of other variables. In other words, we can test:
+
+H0: βi= 0 *after accounting for all other independent variables*
+
+HA: βi≠ 0 *after accounting for all other independent variables*
+
+This means we should include all of our independent variables in one model, right? 
+
+#### Practice: 
+
+Fit a multiple linear regression model that predicts total price based on all the remaining variables in the dataset. Save this model to an object called "reg.model.full".
+
+Then, fit another regression model that aims to explain the total price based on only "cond", "wheels", and "seller_rate". Save this model to an object called "reg.model.subset".
+
+
+```{r}
+# reg.model.full <- 
+# summary(reg.model.full)
+# 
+# reg.model.subset <- 
+# summary(reg.model.subset)
+```
+
+**Compare these two outputs. If you had to choose one model, which would it be? Why? What model output have we learned about that could help us with this decision?**
+
+The most complex model is not necessarily best one. The inclusion of unimportant variables can some times reduce the performance of the regression model (or any model, for that matter). 
+
+As a general rule, there is a trade off between model's *simplicity* and *goodness of fit*. As new independent variables are added to the model, it becomes more complex: each independent variable adds a new regression coefficient and increases the model's capacity to capture variance in the outcome. But at a certain point, these excess variables start just predicting *error*, rather than meaningful variance, which can make our predictions worse. This called the **bias variance tradeoff**.
+
+How do we decide which predictors to include in our final models?
+
+## Model comparisons
+
+### Hypothesis testing-based methods
+
+Taking our models above, we can think of `reg.model.subset` as a **null hypothesis**, and `reg.model.full` as an **alternative hypothesis**. Our question is whether the additional predictors in `reg.model.full` improve our prediction of the outcome or not. 
+
+For this situation, we can construct an F test that compares one model with respect to the other in the following way:
+
+$$ F = \frac{\frac{SS_{res}^0 - SS_{res}^1}{k_{1} - k_{0}}}{\frac{SS_{res}^1}{N - k_{1} - 1}}$$
+
+where $SS_{res}^0$ is the residual sum of squares for our null model,  $SS_{res}^1$ is the residual sum of squares for the alternative models, N is the number of observations, and k0 and k1 are the number of independent variables in both models.
+
+If the alternative model fits better than the null, $SS_{res}^1$ is smaller than $SS_{res}^0$; if the alternative fits worse than the null, $SS_{res}^1$ is larger than $SS_{res}^0$.
+
+To compare two models in R based on hypothesis testing, we can use the `anova` function. We briefly saw this in the prior tutorial. (Note that this is different from the `aov()` function we've used previously!)
+
+```{r}
+?anova
+# anova(reg.model.subset, reg.model.full)
+```
+
+**How do you think we would interpret this output? Think about what our null and alternative hypotheses are here.** 
+
+This approach to regression is usually called hierarchical regression. Note that your null model must be a **subset** of your alternative model. These are typically called **nested models**. You can't compare models with two totally different sets of predictors this way.
+
+
+#### Practice on your own
+
+Compare a regression model with only `cond` as the independent variable (null model) with the alternative model that also adds `wheel`. What do you conclude?
+
+```{r}
+#Practice here
+
+```
+
+
+## Model Performance Criteria
+
+What if you need to compare models that are not nested? To do so, you have to use *model performance criteria*. These are numerical representations of a model's fit. 
+
+We've actually already learned about the most intuitive model performance criteria: $R^2$. 
+
+**Comprehension check: What does $R^2$ represent? How is it calculated? What is the difference between $R^2$ and the Adjusted $R^2$?**
+
+### AIC
+
+Another option is to use the Akaike Information Criterion (AIC) measure. This measure is defined as:
+
+$$AIC = \frac{SS_{res}}{\hat \sigma^2} + 2k$$
+
+Where k is the number of predictor variables in the model.
+
+**The smaller the AIC value, the better the model performs.** 
+
+If $SS_{res}$ increases, this means that the model accounts for *less* data (and  AIC increases). We also have a penalty term that increases as the model complexity (k) increases. 
+
+The best model is the one that fits the data well (low residuals; left hand side) using as few independent variables as possible (low k; right hand side).
+
+Access a model's AIC value like so:
+
+```{r}
+# AIC(reg.model.full)
+# AIC(reg.model.subset)
+```
+
+
+### Stepwise Selection
+
+Sometimes you want to just compare the AICs of two models like above. But other times you may have many more combinations of predictors -- how do you systematically compare them?
+
+One option is to use **stepwise** selection. This is a method that iteratively adds (forward) or subtracts (backward) predictor variables while assessing AICs to arrive at a best-fit model. 
+
+We can use the built-in R function `step` to perform this operation:
+
+```{r}
+?step
+```
+
+#### Backward selection
+
+This strategy for model selection can be summarized as follows:
+
+* Start with the full model -- i.e., all possible predictor variables
+* Drop one variable at a time and record the AIC of each smaller model.
+* Pick the model with the highest decrease in AIC.
+* Repeat until none of the models yield a decrease in AIC.
+
+To select the model using this kind of selection strategy in the step function, we just need to pass the full regression model and set the argument direction to "backward":
+
+The `step` function streamlines this process. We just have to include the full model and specify `direction = 'backward'`:
+
+```{r}
+# step(object = reg.model.full, 
+#      direction = "backward")
+```
+
+In each step above, the predictors are ordered by the model AIC *if that term were dropped*. At a certain point, dropping additional terms can only make the AIC *increase*, at which point the function returns the optimal model. 
+
+#### Forward selection
+
+Forward selection approaches this question from the other direction: starting with a null model and adding variables. It can be summarized as follows:
+
+* Create k separate regression models for each independent variable predicting the dependent variable
+* Pick the model with the smallest AIC
+* Add the remaining variables one at a time to the existing model, and once again pick the model smallest AIC.
+* Continue this process until no remaining variables decrease AIC.
+
+To run forward selection, your object should be your null model, and direction should be "forward". You additionally need to specify "scope", a formula object containing all possible independent variables:
+
+```{r}
+reg.model.null <- lm(total_pr~1, data = dat.mariokart)
+
+#scope is a formula object of most complex model possible
+scope <- total_pr ~ cond + wheels + stock_photo +
+                    duration + seller_rate + n_bids
+
+#run step:
+# step(object = reg.model.null,
+#      scope=scope,
+#      direction = "forward")
+```
+
+**Some important caveats:**
+
+* In this example the same model was found using both forward and backward selection. However, these strategies do not always choose the same model.
+
+* Stepwise selection can have certain caveats and drawbacks that are beyond the scope of the course. In fact, it is usually not recommended as a tool for obtaining more parsimonious models (see for [example](https://journalofbigdata.springeropen.com/articles/10.1186/s40537-018-0143-6)).
+
+The big takeaway here is that the most complex model is not necessarily the best, and that we can systematically use AIC to evaluate this. 
+
+
+
+
+
+
+
